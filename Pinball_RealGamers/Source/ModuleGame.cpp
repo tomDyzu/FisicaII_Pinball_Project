@@ -7,6 +7,14 @@
 #include <math.h>
 #include <algorithm>
 
+// Art ---------------------------------------------------------------
+#define BACKGROUND_PATH   "Assets/background1.jpg"   // 1024x1536: same proportion as the board (2:3)
+#define LOGO_PATH         "Assets/logo.png"         // 1402x1122
+#define DRAW_WALLS      1      // 0 = do not draw the walls (if the background image already has them)
+#define WALL_THICKNESS  6.0f
+#define WALL_COLOR      Color{ 40, 60, 110, 255 }
+#define FLIPPER_COLOR   Color{ 230, 60, 60, 255 }
+
 // Ball ---------------------------------------------------------------
 #define BALL_RADIUS       12
 #define BALL_RESTITUTION  0.4f
@@ -37,7 +45,7 @@
 #define LANE_LEG_END_Y      200   // where the two legs of the half-moon end
 
 // The "sun": the line where the gold ball waits, moving by itself, until SPACE
-#define SUN_Y               660
+#define SUN_Y               680
 #define SUN_MIN_X           (WALL_LEFT + 60)
 #define SUN_MAX_X           (WALL_RIGHT - 60)
 #define SUN_SPEED           220.0f  // pixels per second
@@ -45,7 +53,7 @@
 // Points and extra balls
 #define LANE_POINTS          300    // a ball goes through the line in the middle of the half-moon
 #define LANE_COOLDOWN        0.5f   // seconds before the same ball can score on that line again
-#define EXTRA_BALL_INTERVAL  5.0f  // seconds of play between two extra balls
+#define EXTRA_BALL_INTERVAL  30.0f  // seconds of play between two extra balls
 #define SPAWN_X              (BOARD_WIDTH / 2)   // where the extra balls appear (only a mark, no collision)
 #define SPAWN_Y              180
 #define SPAWN_MARK_RADIUS    16
@@ -54,9 +62,9 @@
 // Star bumpers: the only way to score. They move by themselves along a rail
 #define STAR_POINTS         100
 #define STAR_WALL_GAP       10    // free space between a star at the end of its rail and the wall
-#define STAR_ROW1_Y         315
-#define STAR_ROW2_Y         415
-#define STAR_ROW3_Y         515
+#define STAR_ROW1_Y         285
+#define STAR_ROW2_Y         385
+#define STAR_ROW3_Y         485
 
 struct StarDef
 {
@@ -182,6 +190,22 @@ static void BuildHalfMoon(std::vector<int>& pts)
 // Drawing helpers
 // ---------------------------------------------------------------------
 
+// Draws a texture inside 'area' keeping its proportions, centered
+static void DrawTextureFit(Texture2D texture, Rectangle area)
+{
+	float scale = MIN(area.width / texture.width, area.height / texture.height);
+
+	Rectangle source = { 0.0f, 0.0f, (float)texture.width, (float)texture.height };
+	Rectangle dest = {
+		area.x + (area.width - texture.width * scale) / 2.0f,
+		area.y + (area.height - texture.height * scale) / 2.0f,
+		texture.width * scale,
+		texture.height * scale
+	};
+
+	DrawTexturePro(texture, source, dest, Vector2{ 0.0f, 0.0f }, 0.0f, WHITE);
+}
+
 static void DrawCenteredText(const char* text, int y, int size, Color color)
 {
 	int w = MeasureText(text, size);
@@ -211,7 +235,6 @@ static void DrawPanels(int score, float time_left, float next_ball, const Highsc
 	int seconds = (int)ceilf(time_left);
 
 	// Left panel: logo on the top half, score and time on the bottom half
-	DrawText("LOGO", left, 60, 40, text);
 	DrawLine(LEFT_PANEL_X + 10, BOARD_HEIGHT / 2, LEFT_PANEL_X + PANEL_WIDTH - 10, BOARD_HEIGHT / 2, GRAY);
 	DrawText("SCORE", left, BOARD_HEIGHT / 2 + 40, 24, text);
 	DrawText(TextFormat("%d", score), left, BOARD_HEIGHT / 2 + 75, 40, WHITE);
@@ -222,13 +245,16 @@ static void DrawPanels(int score, float time_left, float next_ball, const Highsc
 	DrawText(TextFormat("%d", (int)ceilf(next_ball)), left, BOARD_HEIGHT / 2 + 305, 40, WHITE);
 
 	// Right panel: highscores (top 6)
-	DrawText("HIGHSCORES", right + 20, 70, 28, text);
-	DrawText("SCORE", right + 40, 130, 16, GRAY);
-	DrawText("TIME", right + 150, 130, 16, GRAY);
+	const int list_top = 200;      // y of the first row
+	const int row_height = 60;     // distance between rows
+
+	DrawText("HIGHSCORES", right, 60, 28, text);
+	DrawText("SCORE", right + 40, list_top - 30, 16, GRAY);
+	DrawText("TIME", right + 150, list_top - 30, 16, GRAY);
 
 	for (int i = 0; i < MAX_HIGHSCORES; ++i)
 	{
-		int y = 180 + i * 50;
+		int y = list_top + i * row_height;
 		Color c = (i == highlight) ? GOLD : WHITE;   // the result of the game that just ended
 
 		DrawText(TextFormat("%d.", i + 1), right, y, 24, c);
@@ -267,6 +293,9 @@ ModuleGame::ModuleGame(Application* app, bool start_enabled) : Module(app, start
 	next_ball_time = EXTRA_BALL_INTERVAL;
 	last_rank = -1;
 
+	background = Texture2D{ 0 };
+	logo = Texture2D{ 0 };
+
 	walls = NULL;
 	half_moon = NULL;
 	left_flipper = NULL;
@@ -283,6 +312,24 @@ bool ModuleGame::Start()
 	LOG("Loading game");
 
 	highscores.Load();
+
+	background = LoadTexture(BACKGROUND_PATH);
+	logo = LoadTexture(LOGO_PATH);
+
+	if (background.id == 0) LOG("Cannot load %s", BACKGROUND_PATH);
+	if (logo.id == 0) LOG("Cannot load %s", LOGO_PATH);
+
+	// The images are much bigger than on screen: mipmaps and trilinear filter make them look better
+	if (background.id != 0)
+	{
+		GenTextureMipmaps(&background);
+		SetTextureFilter(background, TEXTURE_FILTER_TRILINEAR);
+	}
+	if (logo.id != 0)
+	{
+		GenTextureMipmaps(&logo);
+		SetTextureFilter(logo, TEXTURE_FILTER_TRILINEAR);
+	}
 
 	std::vector<int> points;
 
@@ -439,6 +486,21 @@ float* ModuleGame::LaneCooldownOf(PhysBody* body)
 
 update_status ModuleGame::Update()
 {
+	// Art: the background of the board and the logo (if a file is missing, nothing is drawn)
+	if (background.id != 0)
+		DrawTextureFit(background, Rectangle{ 0.0f, 0.0f, (float)BOARD_WIDTH, (float)BOARD_HEIGHT });
+
+	if (logo.id != 0)
+		DrawTextureFit(logo, Rectangle{ (float)(LEFT_PANEL_X + 10), 10.0f, (float)(PANEL_WIDTH - 20), (float)(BOARD_HEIGHT / 2 - 20) });
+
+	// Walls and flippers filled with a color
+#if DRAW_WALLS
+	walls->DrawFilled(WALL_COLOR, WALL_THICKNESS);
+	half_moon->DrawFilled(WALL_COLOR, WALL_THICKNESS);
+#endif
+	left_flipper->DrawFilled(FLIPPER_COLOR);
+	right_flipper->DrawFilled(FLIPPER_COLOR);
+
 	DrawPanels(score, time_left, next_ball_time, highscores, last_rank);
 
 	// Flippers: LEFT / A and RIGHT / D (disabled during game over)
@@ -584,6 +646,11 @@ update_status ModuleGame::Update()
 bool ModuleGame::CleanUp()
 {
 	LOG("Unloading game");
+
+	if (background.id != 0) UnloadTexture(background);
+	if (logo.id != 0) UnloadTexture(logo);
+	background = Texture2D{ 0 };
+	logo = Texture2D{ 0 };
 
 	DestroyStars();
 	DestroyExtraBalls();

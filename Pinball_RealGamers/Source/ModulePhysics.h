@@ -11,7 +11,7 @@
 // so a POSITIVE Y gravity makes bodies fall down on screen.
 // Pinball tables are tilted, so this is lower than real gravity (9.8). Tweak it until it feels right.
 #define GRAVITY_X 0.0f
-#define GRAVITY_Y 10.0f
+#define GRAVITY_Y 12.0f
 
 // Fixed timestep: the physics always advance in steps of 1/60 s, whatever the frame rate is
 #define FIXED_DT (1.0f / 60.0f)
@@ -48,6 +48,7 @@ public:
 
 	void SetLinearVelocity(float vx, float vy);   // pixels per second
 	void SetDynamic(bool dynamic);                // false = kinematic (we move it), true = normal body
+	void DrawFilled(Color color, float thickness = 8.0f) const;
 
 public:
 	b2Body* body;

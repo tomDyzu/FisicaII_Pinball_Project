@@ -11,7 +11,7 @@ ModulePhysics::ModulePhysics(Application* app, bool start_enabled) : Module(app,
 	world = NULL;
 	ground = NULL;
 	mouse_joint = NULL;
-	debug = true;
+	debug = false;
 	accumulator = 0.0f;
 }
 
@@ -558,4 +558,48 @@ void PhysBody::SetDynamic(bool dynamic)
 	body->SetLinearVelocity(b2Vec2(0.0f, 0.0f));
 	body->SetAngularVelocity(0.0f);
 	body->SetAwake(true);
+}
+
+static Vector2 ToPixels(b2Vec2 p)
+{
+	return Vector2{ p.x * PIXELS_PER_METER, p.y * PIXELS_PER_METER };
+}
+
+void PhysBody::DrawFilled(Color color, float thickness) const
+{
+	for (b2Fixture* f = body->GetFixtureList(); f; f = f->GetNext())
+	{
+		if (f->GetType() == b2Shape::e_polygon)
+		{
+			b2PolygonShape* shape = (b2PolygonShape*)f->GetShape();
+
+			// A convex polygon is a fan of triangles from its first vertex
+			Vector2 a = ToPixels(body->GetWorldPoint(shape->m_vertices[0]));
+			for (int32 i = 1; i < shape->m_count - 1; ++i)
+			{
+				Vector2 b = ToPixels(body->GetWorldPoint(shape->m_vertices[i]));
+				Vector2 c = ToPixels(body->GetWorldPoint(shape->m_vertices[i + 1]));
+
+				// raylib only draws triangles whose points are counter-clockwise on screen
+				float cross = (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+				if (cross < 0.0f) DrawTriangle(a, b, c, color);
+				else DrawTriangle(a, c, b, color);
+			}
+		}
+		else if (f->GetType() == b2Shape::e_chain)
+		{
+			b2ChainShape* shape = (b2ChainShape*)f->GetShape();
+
+			// Thick segments with a round joint at every vertex
+			Vector2 prev = ToPixels(body->GetWorldPoint(shape->m_vertices[0]));
+			DrawCircleV(prev, thickness / 2.0f, color);
+			for (int32 i = 1; i < shape->m_count; ++i)
+			{
+				Vector2 v = ToPixels(body->GetWorldPoint(shape->m_vertices[i]));
+				DrawLineEx(prev, v, thickness, color);
+				DrawCircleV(v, thickness / 2.0f, color);
+				prev = v;
+			}
+		}
+	}
 }

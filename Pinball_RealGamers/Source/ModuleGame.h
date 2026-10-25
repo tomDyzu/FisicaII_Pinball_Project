@@ -80,4 +80,7 @@ private:
 
 	Highscores highscores;
 	int last_rank;                             // position of the last game in the list (-1 = it did not enter)
+
+	Texture2D background;
+	Texture2D logo;
 };
