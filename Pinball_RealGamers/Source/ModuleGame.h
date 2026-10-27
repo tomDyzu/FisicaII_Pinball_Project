@@ -40,6 +40,7 @@ private:
 	void CreateStars();
 	void DestroyStars();
 	bool IsStar(PhysBody* body) const;
+	void DrawBall(PhysBody* body, float radius);
 
 	void SpawnExtraBall();
 	void DestroyExtraBalls();
@@ -83,4 +84,5 @@ private:
 
 	Texture2D background;
 	Texture2D logo;
+	Texture2D ball_texture;
 };
