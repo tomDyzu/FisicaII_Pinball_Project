@@ -24,18 +24,17 @@ El objetivo es mantener la bola en juego el mayor tiempo posible dentro del lím
 * F3 / F4: Reduce o aumenta la gravedad de la simulación (GRAVITY).
 * F5 / F6: Reduce o aumenta el rebote de los materiales (BOUNCE).
 
-**Mecánicas de Juego**
-
+## Mecánicas de Juego
 * Gravedad y Rebote Dinámicos: A diferencia de un pinball estático, el usuario puede experimentar cómo la alteración de la gravedad o del rebote afecta drásticamente a la parábola, la aceleración y la pérdida de energía cinética del meteorito tras cada impacto.
 * Objetivos y Combos: Impactar contra los rebotadores circulares amarillos permite encender las letras del combo (B-O-N-U-S) para incrementar la puntuación, alterando el vector de velocidad del meteorito tras colisiones elásticas.
 
-**Características principales**
+## Características principales
 * **Físicas 2D realistas:** Implementación de rebotes, aceleración y colisiones fluidas garantizando un alto rendimiento.
 * **Interfaz HUD completa:** Panel de control con seguimiento en tiempo real de la puntuación (Score), temporizador (Time) y bolas restantes (Next Ball).
 * **Mecánicas de la mesa:** Obstáculos con multiplicadores de puntos, bumpers y flippers responsivos.
 * **Sistema de clasificación:** Tabla de Highscores integrada que registra la puntuación y el tiempo exacto de los mejores jugadores.
 
-**Grupo RealGamers**
+## Grupo RealGamers
 * [Ian León]
 * [Juncheng Ye]
 * [Diyang Zhou]
@@ -44,3 +43,9 @@ El objetivo es mantener la bola en juego el mayor tiempo posible dentro del lím
 * **Lenguaje:** C++
 * **Renderizado gráfico:** Raylib
 * **Motor de físicas:** Box2D
+
+## Instalación y Ejecución
+1. Clona este repositorio o extrae los archivos del documento comprimido.
+2. Abre el proyecto en tu entorno de desarrollo.
+3. Compila el código y ejecuta la aplicación.
+4. Utiliza las teclas F1-F6 para probar los diferentes comportamientos del motor físico y registrar tus mejores puntuaciones en la tabla de Highscores.
