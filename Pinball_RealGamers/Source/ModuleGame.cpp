@@ -8,9 +8,10 @@
 #include <algorithm>
 
 // Art ---------------------------------------------------------------
-#define BACKGROUND_PATH   "Assets/background1.jpg"   // 1024x1536: same proportion as the board (2:3)
+#define BACKGROUND_PATH   "Assets/0.png"            // background of the board (2:3 proportion)
 #define LOGO_PATH         "Assets/logo.png"         // 1402x1122
-#define BALL_PATH         "Assets/S1.png"         // image of the ball
+#define BALL_PATH         "Assets/S1.png"           // image of the gold ball
+#define EXTRA_BALL_PATH   "Assets/S2.png"           // image of the extra balls
 #define DRAW_WALLS      1      // 0 = do not draw the walls (if the background image already has them)
 #define WALL_THICKNESS  6.0f
 #define WALL_COLOR      Color{ 40, 60, 110, 255 }
@@ -273,6 +274,39 @@ static void DrawPanels(int score, float time_left, float next_ball, const Highsc
 	}
 }
 
+// Loads an image and cuts it into a circle, so the square corners are not seen
+static Texture2D LoadBallTexture(const char* path)
+{
+	Texture2D texture = Texture2D{ 0 };
+
+	Image img = LoadImage(path);
+	if (img.data != NULL)
+	{
+		ImageFormat(&img, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
+		Color* px = (Color*)img.data;
+		float r = MIN(img.width, img.height) / 2.0f;
+		float cx = img.width / 2.0f;
+		float cy = img.height / 2.0f;
+
+		for (int y = 0; y < img.height; ++y)
+		{
+			for (int x = 0; x < img.width; ++x)
+			{
+				float dx = x + 0.5f - cx;
+				float dy = y + 0.5f - cy;
+				if (dx * dx + dy * dy > r * r)
+					px[y * img.width + x].a = 0;
+			}
+		}
+
+		texture = LoadTextureFromImage(img);
+		UnloadImage(img);
+	}
+
+	if (texture.id == 0) LOG("Cannot load %s", path);
+	return texture;
+}
+
 // ---------------------------------------------------------------------
 
 ModuleGame::ModuleGame(Application* app, bool start_enabled) : Module(app, start_enabled)
@@ -297,6 +331,7 @@ ModuleGame::ModuleGame(Application* app, bool start_enabled) : Module(app, start
 	background = Texture2D{ 0 };
 	logo = Texture2D{ 0 };
 	ball_texture = Texture2D{ 0 };
+	extra_ball_texture = Texture2D{ 0 };
 
 	walls = NULL;
 	half_moon = NULL;
@@ -320,34 +355,9 @@ bool ModuleGame::Start()
 	if (background.id == 0) LOG("Cannot load %s", BACKGROUND_PATH);
 	if (logo.id == 0) LOG("Cannot load %s", LOGO_PATH);
 
-	// The ball image: it is cut into a circle, so the square corners of the .jpg are not seen
-	{
-		Image img = LoadImage(BALL_PATH);
-		if (img.data != NULL)
-		{
-			ImageFormat(&img, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
-			Color* px = (Color*)img.data;
-			float r = MIN(img.width, img.height) / 2.0f;
-			float cx = img.width / 2.0f;
-			float cy = img.height / 2.0f;
-
-			for (int y = 0; y < img.height; ++y)
-			{
-				for (int x = 0; x < img.width; ++x)
-				{
-					float dx = x + 0.5f - cx;
-					float dy = y + 0.5f - cy;
-					if (dx * dx + dy * dy > r * r)
-						px[y * img.width + x].a = 0;
-				}
-			}
-
-			ball_texture = LoadTextureFromImage(img);
-			UnloadImage(img);
-		}
-
-		if (ball_texture.id == 0) LOG("Cannot load %s", BALL_PATH);
-	}
+	// The ball images
+	ball_texture = LoadBallTexture(BALL_PATH);
+	extra_ball_texture = LoadBallTexture(EXTRA_BALL_PATH);
 
 	// The images are much bigger than on screen: mipmaps and trilinear filter make them look better
 	if (background.id != 0)
@@ -663,7 +673,9 @@ update_status ModuleGame::Update()
 
 	// The image was not found: show where the game is looking for it
 	if (ball_texture.id == 0)
-		DrawText(TextFormat("NO IMAGE: %s/Assets/S1.png", GetWorkingDirectory()), 10, 10, 12, RED);
+		DrawText(TextFormat("NO IMAGE: %s/%s", GetWorkingDirectory(), BALL_PATH), 10, 10, 12, RED);
+	if (extra_ball_texture.id == 0)
+		DrawText(TextFormat("NO IMAGE: %s/%s", GetWorkingDirectory(), EXTRA_BALL_PATH), 10, 26, 12, RED);
 
 	return UPDATE_CONTINUE;
 }
@@ -675,9 +687,11 @@ bool ModuleGame::CleanUp()
 	if (background.id != 0) UnloadTexture(background);
 	if (logo.id != 0) UnloadTexture(logo);
 	if (ball_texture.id != 0) UnloadTexture(ball_texture);
+	if (extra_ball_texture.id != 0) UnloadTexture(extra_ball_texture);
 	background = Texture2D{ 0 };
 	logo = Texture2D{ 0 };
 	ball_texture = Texture2D{ 0 };
+	extra_ball_texture = Texture2D{ 0 };
 
 	DestroyStars();
 	DestroyExtraBalls();
@@ -725,7 +739,7 @@ void ModuleGame::OnCollision(PhysBody* bodyA, PhysBody* bodyB)
 
 }
 
-// Draws the ball image centered on the body
+// Draws the ball image centered on the body: S1 for the gold ball, S2 for the extra balls
 void ModuleGame::DrawBall(PhysBody* body, float radius)
 {
 	if (body == NULL)
@@ -734,16 +748,19 @@ void ModuleGame::DrawBall(PhysBody* body, float radius)
 	int x, y;
 	body->GetPosition(x, y);
 
-	// The image did not load: draw the old gold circle so the ball is always visible
-	if (ball_texture.id == 0)
+	bool is_gold = (body == gold_ball);
+	Texture2D texture = is_gold ? ball_texture : extra_ball_texture;
+
+	// The image did not load: draw a colored circle so the ball is always visible
+	if (texture.id == 0)
 	{
-		DrawCircle(x, y, radius, GOLD);
+		DrawCircle(x, y, radius, is_gold ? GOLD : SKYBLUE);
 		return;
 	}
 
-	Rectangle src = { 0.0f, 0.0f, (float)ball_texture.width, (float)ball_texture.height };
+	Rectangle src = { 0.0f, 0.0f, (float)texture.width, (float)texture.height };
 	Rectangle dst = { (float)x, (float)y, radius * 2.0f, radius * 2.0f };
 	Vector2 origin = { radius, radius };
 
-	DrawTexturePro(ball_texture, src, dst, origin, 0.0f, WHITE);
+	DrawTexturePro(texture, src, dst, origin, 0.0f, WHITE);
 }

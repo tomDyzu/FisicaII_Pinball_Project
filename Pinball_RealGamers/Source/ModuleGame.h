@@ -84,5 +84,6 @@ private:
 
 	Texture2D background;
 	Texture2D logo;
-	Texture2D ball_texture;
+	Texture2D ball_texture;                    // the gold ball
+	Texture2D extra_ball_texture;              // the extra balls
 };
