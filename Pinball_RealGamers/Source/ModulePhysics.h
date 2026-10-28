@@ -48,6 +48,7 @@ public:
 
 	void SetLinearVelocity(float vx, float vy);   // pixels per second
 	void SetDynamic(bool dynamic);                // false = kinematic (we move it), true = normal body
+	void SetRestitution(float restitution);
 	void DrawFilled(Color color, float thickness = 8.0f) const;
 
 public:
@@ -99,11 +100,15 @@ public:
 
 	void BeginContact(b2Contact* contact) override;
 
+	void SetGravity(float g);
+	float GetGravity() const;
+
 private:
 
 	bool debug;
 	b2World* world;
 	float accumulator;
+	float gravity_y;
 
 	std::vector<PhysBody*> rail_bodies; // updated every frame in PreUpdate
 

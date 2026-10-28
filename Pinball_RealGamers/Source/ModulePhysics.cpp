@@ -13,6 +13,7 @@ ModulePhysics::ModulePhysics(Application* app, bool start_enabled) : Module(app,
 	mouse_joint = NULL;
 	debug = false;
 	accumulator = 0.0f;
+	gravity_y = GRAVITY_Y;
 }
 
 // Destructor
@@ -602,4 +603,24 @@ void PhysBody::DrawFilled(Color color, float thickness) const
 			}
 		}
 	}
+}
+void ModulePhysics::SetGravity(float g)
+{
+	gravity_y = g;
+	world->SetGravity(b2Vec2(GRAVITY_X, gravity_y));
+
+	// A sleeping body would not feel the new gravity
+	for (b2Body* b = world->GetBodyList(); b; b = b->GetNext())
+		b->SetAwake(true);
+}
+
+float ModulePhysics::GetGravity() const
+{
+	return gravity_y;
+}
+
+void PhysBody::SetRestitution(float restitution)
+{
+	for (b2Fixture* f = body->GetFixtureList(); f; f = f->GetNext())
+		f->SetRestitution(restitution);
 }

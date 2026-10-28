@@ -2,10 +2,13 @@
 #include "Application.h"
 #include "ModuleWindow.h"
 
+static const int fps_options[] = { 30, 60, 120, 144 };
+
 ModuleWindow::ModuleWindow(Application* app, bool start_enabled) : Module(app, start_enabled)
 {
 	width = SCREEN_WIDTH;
 	height = SCREEN_HEIGHT;
+	fps_limit = 60;
 
 	for (int i = 0; i < WINDOW_EVENT_COUNT; ++i)
 		windowEvents[i] = false;
@@ -21,6 +24,8 @@ bool ModuleWindow::Init()
 {
 	LOG("Init window");
 
+
+
 	unsigned int flags = 0;
 
 	width = SCREEN_WIDTH;
@@ -35,6 +40,7 @@ bool ModuleWindow::Init()
 
 	SetConfigFlags(flags);
 	InitWindow(width, height, TITLE);
+	SetTargetFPS(fps_limit);
 
 	if (!IsWindowReady())
 	{
@@ -46,6 +52,24 @@ bool ModuleWindow::Init()
 	// SetExitKey(KEY_NULL);
 
 	return true;
+}
+
+void ModuleWindow::CycleFPSLimit()
+{
+	int next = 0;
+	for (int i = 0; i < 4; ++i)
+	{
+		if (fps_options[i] == fps_limit)
+			next = (i + 1) % 4;
+	}
+
+	fps_limit = fps_options[next];
+	SetTargetFPS(fps_limit);
+}
+
+int ModuleWindow::GetFPSLimit() const
+{
+	return fps_limit;
 }
 
 // Called each loop iteration

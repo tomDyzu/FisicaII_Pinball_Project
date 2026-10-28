@@ -37,9 +37,13 @@ public:
 	// Events detected during the current frame
 	bool GetWindowEvent(WindowEvent ev) const;
 
+	void CycleFPSLimit();     
+	int GetFPSLimit() const;
+
 private:
 	uint width;
 	uint height;
+	int fps_limit;
 
 	bool windowEvents[WINDOW_EVENT_COUNT];
 };

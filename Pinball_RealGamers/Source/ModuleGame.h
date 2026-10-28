@@ -40,6 +40,7 @@ private:
 	void CreateStars();
 	void DestroyStars();
 	bool IsStar(PhysBody* body) const;
+	int StarIndex(PhysBody* body) const;        // -1 if it is not a star
 	void DrawBall(PhysBody* body, float radius);
 
 	void SpawnExtraBall();
@@ -86,4 +87,11 @@ private:
 	Texture2D logo;
 	Texture2D ball_texture;                    // the gold ball
 	Texture2D extra_ball_texture;              // the extra balls
+
+	float ball_restitution;                    // bounce of the balls: the player can change it
+
+	// Combo: every star is a letter of a word. Hit all the letters and you get a bonus
+	bool star_lit[STAR_COUNT];                 // letters already hit
+	bool combo_pending;                        // raised in OnCollision, handled in Update
+	float combo_flash;                         // seconds left showing the combo message
 };

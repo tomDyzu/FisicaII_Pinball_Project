@@ -2,6 +2,7 @@
 #include "Application.h"
 #include "ModuleGame.h"
 #include "ModulePhysics.h"
+#include "ModuleWindow.h"
 
 #include <vector>
 #include <math.h>
@@ -16,6 +17,7 @@
 #define WALL_THICKNESS  6.0f
 #define WALL_COLOR      Color{ 40, 60, 110, 255 }
 #define FLIPPER_COLOR   Color{ 230, 60, 60, 255 }
+#define GOLD_BRIGHTNESS 1.3f   // brightness of the gold ball: higher = lighter
 
 // Ball ---------------------------------------------------------------
 #define BALL_RADIUS       12
@@ -23,7 +25,7 @@
 #define BALL_FRICTION     0.1f
 
 // Game ---------------------------------------------------------------
-#define GAME_TIME_SECONDS 300.0f   // 5 minutes
+#define GAME_TIME_SECONDS 240.00f   // 5 minutes
 
 // Flippers -----------------------------------------------------------
 #define FLIPPER_LENGTH         90
@@ -53,7 +55,7 @@
 #define SUN_SPEED           220.0f  // pixels per second
 
 // Points and extra balls
-#define LANE_POINTS          300    // a ball goes through the line in the middle of the half-moon
+#define LANE_POINTS          500    // a ball goes through the line in the middle of the half-moon
 #define LANE_COOLDOWN        0.5f   // seconds before the same ball can score on that line again
 #define EXTRA_BALL_INTERVAL  30.0f  // seconds of play between two extra balls
 #define SPAWN_X              (BOARD_WIDTH / 2)   // where the extra balls appear (only a mark, no collision)
@@ -67,6 +69,11 @@
 #define STAR_ROW1_Y         285
 #define STAR_ROW2_Y         385
 #define STAR_ROW3_Y         485
+
+// Combo: every star is a letter of this word (same order as star_defs). Hit them all to get a bonus
+#define COMBO_WORD          "BONUS"   // it must have STAR_COUNT letters
+#define COMBO_POINTS        1000
+#define COMBO_SHOW_TIME     1.5f      // seconds that the message is shown
 
 struct StarDef
 {
@@ -214,19 +221,6 @@ static void DrawCenteredText(const char* text, int y, int size, Color color)
 	DrawText(text, BOARD_WIDTH / 2 - w / 2, y, size, color);
 }
 
-// Placeholder for the star art: a five-pointed star drawn with lines
-static void DrawStarShape(int cx, int cy, float r, Color color)
-{
-	Vector2 p[5];
-	for (int i = 0; i < 5; ++i)
-	{
-		float a = (-90.0f + 72.0f * i) * DEGTORAD;
-		p[i] = Vector2{ cx + r * cosf(a), cy + r * sinf(a) };
-	}
-	for (int i = 0; i < 5; ++i)
-		DrawLineEx(p[i], p[(i + 2) % 5], 2.0f, color);
-}
-
 // TODO: placeholder panels. Replace with the logo and the highscores
 static void DrawPanels(int score, float time_left, float next_ball, const Highscores& hs, int highlight)
 {
@@ -274,8 +268,47 @@ static void DrawPanels(int score, float time_left, float next_ball, const Highsc
 	}
 }
 
-// Loads an image and cuts it into a circle, so the square corners are not seen
-static Texture2D LoadBallTexture(const char* path)
+// Letters of the combo word in the left panel: they light up when their star is hit
+static void DrawCombo(const bool* lit, float flash)
+{
+	int left = LEFT_PANEL_X + 20;
+	int y = BOARD_HEIGHT - 75;
+
+	DrawText("COMBO", left, y - 22, 16, GRAY);
+
+	for (int i = 0; i < STAR_COUNT; ++i)
+	{
+		const char letter[2] = { COMBO_WORD[i], '\0' };
+		DrawText(letter, left + i * 38, y, 40, lit[i] ? GOLD : DARKGRAY);
+	}
+
+	// The combo was completed: message over the board
+	if (flash > 0.0f)
+	{
+		DrawRectangle(WALL_LEFT, 545, BOARD_WIDTH - 2 * WALL_LEFT, 100, Fade(BLACK, 0.6f));
+		DrawCenteredText("BONUS! EXTRA BALL", 558, 34, GOLD);
+		DrawCenteredText(TextFormat("+%d", COMBO_POINTS), 600, 30, WHITE);
+	}
+}
+
+// What the player can change, in the right panel under the highscores
+static void DrawSettings(int fps_limit, float gravity, float bounce)
+{
+	int right = RIGHT_PANEL_X + 20;
+	int y = 640;
+	Color text = LIGHTGRAY;
+
+	DrawText("SETTINGS", right, y, 20, WHITE);
+	DrawText("F1  DEBUG", right, y + 32, 16, text);
+	DrawText(TextFormat("F2  FPS LIMIT: %d", fps_limit), right, y + 56, 16, text);
+	DrawText(TextFormat("F3/F4  GRAVITY: %.0f", gravity), right, y + 80, 16, text);
+	DrawText(TextFormat("F5/F6  BOUNCE: %.1f", bounce), right, y + 104, 16, text);
+}
+
+// Loads an image and cuts it into a circle, so the square corners are not seen.
+// gold = true: the image is turned into gray tones (it keeps its light and shadows), so the
+// gold tint used when drawing it gives gold whatever the colors of the original are
+static Texture2D LoadBallTexture(const char* path, bool gold)
 {
 	Texture2D texture = Texture2D{ 0 };
 
@@ -292,10 +325,19 @@ static Texture2D LoadBallTexture(const char* path)
 		{
 			for (int x = 0; x < img.width; ++x)
 			{
+				Color& p = px[y * img.width + x];
+
 				float dx = x + 0.5f - cx;
 				float dy = y + 0.5f - cy;
 				if (dx * dx + dy * dy > r * r)
-					px[y * img.width + x].a = 0;
+					p.a = 0;
+
+				if (gold)
+				{
+					// Gray level, a bit brighter: the gold tint multiplies it and would make it too dark
+					float gray = (0.299f * p.r + 0.587f * p.g + 0.114f * p.b) * GOLD_BRIGHTNESS;
+					p.r = p.g = p.b = (unsigned char)MIN(gray, 255.0f);
+				}
 			}
 		}
 
@@ -328,6 +370,12 @@ ModuleGame::ModuleGame(Application* app, bool start_enabled) : Module(app, start
 	next_ball_time = EXTRA_BALL_INTERVAL;
 	last_rank = -1;
 
+	ball_restitution = BALL_RESTITUTION;
+	combo_pending = false;
+	combo_flash = 0.0f;
+	for (int i = 0; i < STAR_COUNT; ++i)
+		star_lit[i] = false;
+
 	background = Texture2D{ 0 };
 	logo = Texture2D{ 0 };
 	ball_texture = Texture2D{ 0 };
@@ -356,8 +404,8 @@ bool ModuleGame::Start()
 	if (logo.id == 0) LOG("Cannot load %s", LOGO_PATH);
 
 	// The ball images
-	ball_texture = LoadBallTexture(BALL_PATH);
-	extra_ball_texture = LoadBallTexture(EXTRA_BALL_PATH);
+	ball_texture = LoadBallTexture(BALL_PATH, true);               // gold
+	extra_ball_texture = LoadBallTexture(EXTRA_BALL_PATH, false);  // as it is
 
 	// The images are much bigger than on screen: mipmaps and trilinear filter make them look better
 	if (background.id != 0)
@@ -406,12 +454,19 @@ void ModuleGame::StartNewGame()
 	App->physics->DestroyBody(gold_ball);
 
 	// Kinematic while waiting: we move it ourselves and nothing pushes it
-	gold_ball = App->physics->CreateCircle(SUN_MIN_X, SUN_Y, BALL_RADIUS, BALL_RESTITUTION, BALL_FRICTION, true);
+	gold_ball = App->physics->CreateCircle(SUN_MIN_X, SUN_Y, BALL_RADIUS, ball_restitution, BALL_FRICTION, true);
 	gold_ball->SetDynamic(false);
 
 	gold_dir = 1.0f;
 	gold_lost = false;
 	last_rank = -1;
+
+	// The combo starts again
+	combo_pending = false;
+	combo_flash = 0.0f;
+	for (int i = 0; i < STAR_COUNT; ++i)
+		star_lit[i] = false;
+
 	gold_lane_cooldown = 0.0f;
 	next_ball_time = EXTRA_BALL_INTERVAL;
 	time_left = GAME_TIME_SECONDS;
@@ -443,18 +498,23 @@ void ModuleGame::DestroyStars()
 	}
 }
 
-bool ModuleGame::IsStar(PhysBody* body) const
+int ModuleGame::StarIndex(PhysBody* body) const
 {
 	if (body == NULL)
-		return false;
+		return -1;
 
 	for (int i = 0; i < STAR_COUNT; ++i)
 	{
 		if (stars[i] == body)
-			return true;
+			return i;
 	}
 
-	return false;
+	return -1;
+}
+
+bool ModuleGame::IsStar(PhysBody* body) const
+{
+	return StarIndex(body) >= 0;
 }
 
 void ModuleGame::EndGame()
@@ -475,7 +535,7 @@ void ModuleGame::SpawnExtraBall()
 	int x = SPAWN_X + GetRandomValue(-SPAWN_RANDOM_X, SPAWN_RANDOM_X);
 
 	ExtraBall extra;
-	extra.body = App->physics->CreateCircle(x, SPAWN_Y, BALL_RADIUS, BALL_RESTITUTION, BALL_FRICTION, true);
+	extra.body = App->physics->CreateCircle(x, SPAWN_Y, BALL_RADIUS, ball_restitution, BALL_FRICTION, true);
 	extra.lane_cooldown = 0.0f;
 
 	extra_balls.push_back(extra);
@@ -542,6 +602,7 @@ update_status ModuleGame::Update()
 	right_flipper->DrawFilled(FLIPPER_COLOR);
 
 	DrawPanels(score, time_left, next_ball_time, highscores, last_rank);
+	DrawSettings(App->window->GetFPSLimit(), App->physics->GetGravity(), ball_restitution);
 
 	// Flippers: LEFT / A and RIGHT / D (disabled during game over)
 	bool flippers_on = (state != STATE_GAME_OVER);
@@ -551,6 +612,34 @@ update_status ModuleGame::Update()
 	// R = restart (debug)
 	if (IsKeyPressed(KEY_R))
 		StartNewGame();
+
+	// Things the player can change
+	// F2: target FPS (the physics always run in fixed steps, so the game speed does not change)
+	if (IsKeyPressed(KEY_F2))
+		App->window->CycleFPSLimit();
+
+	// F3 / F4: gravity
+	float g = App->physics->GetGravity();
+	if (IsKeyPressed(KEY_F3)) g = MAX(g - 1.0f, 1.0f);
+	if (IsKeyPressed(KEY_F4)) g = MIN(g + 1.0f, 30.0f);
+	if (g != App->physics->GetGravity())
+		App->physics->SetGravity(g);
+
+	// F5 / F6: bounce of the balls (restitution, from 0 to 1)
+	float bounce = ball_restitution;
+	if (IsKeyPressed(KEY_F5)) bounce = MAX(bounce - 0.1f, 0.0f);
+	if (IsKeyPressed(KEY_F6)) bounce = MIN(bounce + 0.1f, 1.0f);
+	bounce = roundf(bounce * 10.0f) / 10.0f;
+	if (bounce != ball_restitution)
+	{
+		ball_restitution = bounce;
+
+		// It also changes the balls that are already in the board
+		if (gold_ball != NULL)
+			gold_ball->SetRestitution(ball_restitution);
+		for (ExtraBall& e : extra_balls)
+			e.body->SetRestitution(ball_restitution);
+	}
 
 	// Extra balls that fell out of the board (bodies are never destroyed inside a collision callback)
 	for (PhysBody* pb : balls_to_remove)
@@ -597,10 +686,16 @@ update_status ModuleGame::Update()
 		{
 			int x, y;
 			stars[i]->GetPosition(x, y);
-			DrawCircle(x, y, (float)star_defs[i].radius, ORANGE);
-			DrawStarShape(x, y, star_defs[i].radius * 0.7f, WHITE);
+			DrawCircle(x, y, (float)star_defs[i].radius, star_lit[i] ? YELLOW : ORANGE);
+
+			// The letter of the combo word
+			const char letter[2] = { COMBO_WORD[i], '\0' };
+			int size = (int)(star_defs[i].radius * 1.2f);
+			DrawText(letter, x - MeasureText(letter, size) / 2, y - size / 2, size, WHITE);
 		}
 	}
+
+	DrawCombo(star_lit, combo_flash);
 
 	switch (state)
 	{
@@ -638,6 +733,26 @@ update_status ModuleGame::Update()
 		{
 			SpawnExtraBall();
 			next_ball_time += EXTRA_BALL_INTERVAL;
+		}
+
+		// Combo: all the letters were hit (the body is created here, never inside the collision callback)
+		if (combo_pending)
+		{
+			combo_pending = false;
+			score += COMBO_POINTS;
+			SpawnExtraBall();
+			combo_flash = COMBO_SHOW_TIME;
+		}
+
+		// After the message the letters go out and the combo can be done again
+		if (combo_flash > 0.0f)
+		{
+			combo_flash -= GetFrameTime();
+			if (combo_flash <= 0.0f)
+			{
+				for (int i = 0; i < STAR_COUNT; ++i)
+					star_lit[i] = false;
+			}
 		}
 
 		if (time_left <= 0.0f)
@@ -734,8 +849,27 @@ void ModuleGame::OnCollision(PhysBody* bodyA, PhysBody* bodyB)
 	}
 
 	// The ball touches a star: points. Walls and other stars do not score
-	if (state == STATE_PLAYING && IsStar(bodyA) && IsBall(bodyB))
+	int star = StarIndex(bodyA);
+	if (state == STATE_PLAYING && star >= 0 && IsBall(bodyB))
+	{
 		score += STAR_POINTS;
+
+		// Combo: a new letter of the word. During the message nothing is added
+		if (combo_flash <= 0.0f && !star_lit[star])
+		{
+			star_lit[star] = true;
+
+			bool all_lit = true;
+			for (int i = 0; i < STAR_COUNT; ++i)
+			{
+				if (!star_lit[i])
+					all_lit = false;
+			}
+
+			if (all_lit)
+				combo_pending = true;
+		}
+	}
 
 }
 
@@ -762,5 +896,5 @@ void ModuleGame::DrawBall(PhysBody* body, float radius)
 	Rectangle dst = { (float)x, (float)y, radius * 2.0f, radius * 2.0f };
 	Vector2 origin = { radius, radius };
 
-	DrawTexturePro(texture, src, dst, origin, 0.0f, WHITE);
+	DrawTexturePro(texture, src, dst, origin, 0.0f, is_gold ? GOLD : WHITE);
 }
