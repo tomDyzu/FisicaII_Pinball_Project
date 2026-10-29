@@ -9,7 +9,7 @@
 #include <algorithm>
 
 // Art ---------------------------------------------------------------
-#define BACKGROUND_PATH   "Assets/0.png"            // background of the board (2:3 proportion)
+#define BACKGROUND_PATH   "Assets/back.png"            // background of the board (2:3 proportion)
 #define LOGO_PATH         "Assets/logo.png"         // 1402x1122
 #define BALL_PATH         "Assets/S1.png"           // image of the gold ball
 #define EXTRA_BALL_PATH   "Assets/S2.png"           // image of the extra balls
