@@ -39,13 +39,15 @@ enum update_status
 #define BOARD_HEIGHT		  900
 #define PANEL_WIDTH			  250
 
-#define SCREEN_WIDTH		  (BOARD_WIDTH + 2 * PANEL_WIDTH)
+
+#define LAUNCH_STRIP_WIDTH	  30
+#define SCREEN_WIDTH		  (BOARD_WIDTH + LAUNCH_STRIP_WIDTH + 2 * PANEL_WIDTH)
 #define SCREEN_HEIGHT		  BOARD_HEIGHT
 
 // Panels in BOARD coordinates (the camera moves the board to the center of the window),
 // so they are outside of the 0..BOARD_WIDTH range
 #define LEFT_PANEL_X		  (-PANEL_WIDTH)
-#define RIGHT_PANEL_X		  BOARD_WIDTH
+#define RIGHT_PANEL_X		  (BOARD_WIDTH + LAUNCH_STRIP_WIDTH)
 
 #define SCREEN_SIZE				1
 #define WIN_FULLSCREEN		false

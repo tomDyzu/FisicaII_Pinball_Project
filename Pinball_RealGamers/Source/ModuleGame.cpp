@@ -25,7 +25,7 @@
 #define BALL_FRICTION     0.1f
 
 // Game ---------------------------------------------------------------
-#define GAME_TIME_SECONDS 240.00f   // 5 minutes
+#define GAME_TIME_SECONDS 300.0f   // 5 minutes
 
 // Flippers -----------------------------------------------------------
 #define FLIPPER_LENGTH         90
@@ -48,14 +48,25 @@
 #define LANE_CORNER_RADIUS  30
 #define LANE_LEG_END_Y      200   // where the two legs of the half-moon end
 
-// The "sun": the line where the gold ball waits, moving by itself, until SPACE
-#define SUN_Y               680
-#define SUN_MIN_X           (WALL_LEFT + 60)
-#define SUN_MAX_X           (WALL_RIGHT - 60)
-#define SUN_SPEED           220.0f  // pixels per second
+// Launcher lane, to the right of the playfield. Its divider is the right wall of the playfield
+#define LAUNCH_LANE_WIDTH     44                                   // free width of the lane (the ball is 24)
+#define LAUNCH_LANE_OUT_X     (WALL_RIGHT + LAUNCH_LANE_WIDTH)     // outer wall of the lane
+#define LAUNCH_LANE_X         (WALL_RIGHT + LAUNCH_LANE_WIDTH / 2) // center of the lane
+#define LAUNCH_LANE_FLOOR_Y   890
+#define LAUNCH_LANE_ARC       LAUNCH_LANE_WIDTH                    // radius of the curve at the top of the lane
+#define DIVIDER_TOP_Y         (WALL_TOP + CORNER_RADIUS)           // the divider ends where the corner arc starts
+
+// Plunger: hold S / DOWN to pull it back, release to shoot the ball
+#define PLUNGER_HALF_W        18
+#define PLUNGER_HALF_H        6
+#define PLUNGER_REST_Y        820
+#define PLUNGER_PULL          40       // how far it goes down at full charge (pixels)
+#define PLUNGER_CHARGE_TIME   1.0f     // seconds to get the full power
+#define PLUNGER_SPEED_MIN     250.0f   // speed of the plunger going up with the minimum charge (pixels per second)
+#define PLUNGER_SPEED_MAX     900.0f   // and with the full charge. The ball leaves about 1.4 times faster
 
 // Points and extra balls
-#define LANE_POINTS          500    // a ball goes through the line in the middle of the half-moon
+#define LANE_POINTS          300    // a ball goes through the line in the middle of the half-moon
 #define LANE_COOLDOWN        0.5f   // seconds before the same ball can score on that line again
 #define EXTRA_BALL_INTERVAL  30.0f  // seconds of play between two extra balls
 #define SPAWN_X              (BOARD_WIDTH / 2)   // where the extra balls appear (only a mark, no collision)
@@ -195,6 +206,21 @@ static void BuildHalfMoon(std::vector<int>& pts)
 	AddPoint(pts, xl + t, y_end);
 }
 
+// The lane of the launcher, to the right of the playfield. Counter-clockwise on screen (the ball is inside):
+// along the floor, up the outer wall, around the curve at the top and left along the ceiling until it
+// meets the top wall of the playfield.
+// The corner arc of the playfield is one-sided: a ball that comes from the lane goes through it (it is
+// behind the arc) and a ball that comes from the playfield cannot enter the lane. A one-way gate for free
+static void BuildLaunchLane(std::vector<int>& pts)
+{
+	const float r = LAUNCH_LANE_ARC;
+
+	AddPoint(pts, WALL_RIGHT, LAUNCH_LANE_FLOOR_Y);
+	AddPoint(pts, LAUNCH_LANE_OUT_X, LAUNCH_LANE_FLOOR_Y);
+	AddArc(pts, LAUNCH_LANE_OUT_X - r, WALL_TOP + r, r, 0.0f, -90.0f, 10);
+	AddPoint(pts, WALL_RIGHT - CORNER_RADIUS, WALL_TOP);
+}
+
 // ---------------------------------------------------------------------
 // Drawing helpers
 // ---------------------------------------------------------------------
@@ -268,6 +294,38 @@ static void DrawPanels(int score, float time_left, float next_ball, const Highsc
 	}
 }
 
+// The plunger: a head, a spring down to the floor of the lane and a power bar (placeholder drawing)
+static void DrawPlunger(int x, int y, float charge)
+{
+	// Spring: a zigzag between the head and the floor
+	const int coils = 8;
+	float top = (float)(y + PLUNGER_HALF_H);
+	float bottom = (float)LAUNCH_LANE_FLOOR_Y;
+	Vector2 prev = Vector2{ (float)x, top };
+	for (int i = 1; i <= coils; ++i)
+	{
+		float t = (float)i / coils;
+		Vector2 p = Vector2{ x + ((i % 2) ? 10.0f : -10.0f), top + (bottom - top) * t };
+		if (i == coils) p.x = (float)x;
+		DrawLineEx(prev, p, 3.0f, DARKGRAY);
+		prev = p;
+	}
+
+	DrawRectangle(x - PLUNGER_HALF_W, y - PLUNGER_HALF_H, PLUNGER_HALF_W * 2, PLUNGER_HALF_H * 2, GRAY);
+
+	// Power bar (in the empty corner next to the lane): green when empty, red when full
+	int bar_x = WALL_RIGHT - 32;
+	int bar_y = 770;
+	int bar_w = 14;
+	int bar_h = 110;
+	int fill = (int)(bar_h * charge);
+	Color c = Color{ (unsigned char)(255 * charge), (unsigned char)(255 * (1.0f - charge)), 0, 255 };
+
+	DrawRectangle(bar_x, bar_y, bar_w, bar_h, Fade(BLACK, 0.5f));
+	DrawRectangle(bar_x, bar_y + bar_h - fill, bar_w, fill, c);
+	DrawRectangleLines(bar_x, bar_y, bar_w, bar_h, WHITE);
+}
+
 // Letters of the combo word in the left panel: they light up when their star is hit
 static void DrawCombo(const bool* lit, float flash)
 {
@@ -303,6 +361,7 @@ static void DrawSettings(int fps_limit, float gravity, float bounce)
 	DrawText(TextFormat("F2  FPS LIMIT: %d", fps_limit), right, y + 56, 16, text);
 	DrawText(TextFormat("F3/F4  GRAVITY: %.0f", gravity), right, y + 80, 16, text);
 	DrawText(TextFormat("F5/F6  BOUNCE: %.1f", bounce), right, y + 104, 16, text);
+	DrawText("S / DOWN  LAUNCH", right, y + 128, 16, text);
 }
 
 // Loads an image and cuts it into a circle, so the square corners are not seen.
@@ -356,8 +415,13 @@ ModuleGame::ModuleGame(Application* app, bool start_enabled) : Module(app, start
 	state = STATE_WAITING;
 
 	gold_ball = NULL;
-	gold_dir = 1.0f;
+	launch_charge = 0.0f;
+	plunger_firing = false;
 	gold_lost = false;
+
+	plunger = NULL;
+	lane_walls = NULL;
+	lane_divider = NULL;
 
 	time_left = GAME_TIME_SECONDS;
 	score = 0;
@@ -439,6 +503,20 @@ bool ModuleGame::Start()
 	lane_sensor = App->physics->CreateRectangleSensor(BOARD_WIDTH / 2, WALL_TOP + LANE_WIDTH / 2, 4, LANE_WIDTH / 2);
 	lane_sensor->listener = this;
 
+	// Launcher lane: its walls and the divider. The divider is seen from the lane (the chain goes down)
+	points.clear();
+	BuildLaunchLane(points);
+	lane_walls = App->physics->CreateChain(0, 0, points.data(), (int)points.size(), false);
+
+	points.clear();
+	AddPoint(points, WALL_RIGHT, DIVIDER_TOP_Y);
+	AddPoint(points, WALL_RIGHT, LAUNCH_LANE_FLOOR_Y);
+	lane_divider = App->physics->CreateChain(0, 0, points.data(), (int)points.size(), false);
+
+	// The plunger: a box that we move (kinematic). The ball rests on it
+	plunger = App->physics->CreateRectangle(LAUNCH_LANE_X, PLUNGER_REST_Y, PLUNGER_HALF_W, PLUNGER_HALF_H);
+	plunger->SetDynamic(false);
+
 	StartNewGame();
 
 	return true;
@@ -453,11 +531,11 @@ void ModuleGame::StartNewGame()
 
 	App->physics->DestroyBody(gold_ball);
 
-	// Kinematic while waiting: we move it ourselves and nothing pushes it
-	gold_ball = App->physics->CreateCircle(SUN_MIN_X, SUN_Y, BALL_RADIUS, ball_restitution, BALL_FRICTION, true);
-	gold_ball->SetDynamic(false);
+	// The gold ball waits on the plunger, in the launcher lane
+	gold_ball = App->physics->CreateCircle(LAUNCH_LANE_X, PLUNGER_REST_Y - PLUNGER_HALF_H - BALL_RADIUS, BALL_RADIUS, ball_restitution, BALL_FRICTION, true);
 
-	gold_dir = 1.0f;
+	launch_charge = 0.0f;
+	plunger_firing = false;
 	gold_lost = false;
 	last_rank = -1;
 
@@ -584,6 +662,48 @@ float* ModuleGame::LaneCooldownOf(PhysBody* body)
 	return NULL;
 }
 
+void ModuleGame::UpdatePlunger(float dt)
+{
+	bool pulling = IsKeyDown(KEY_S) || IsKeyDown(KEY_DOWN);
+
+	int x, y;
+	plunger->GetPosition(x, y);
+
+	// Going up fast: it stops when it gets back to its resting position
+	if (plunger_firing)
+	{
+		if (y <= PLUNGER_REST_Y)
+		{
+			plunger_firing = false;
+			plunger->SetLinearVelocity(0.0f, 0.0f);
+		}
+		return;
+	}
+
+	if (pulling)
+	{
+		launch_charge = MIN(launch_charge + dt / PLUNGER_CHARGE_TIME, 1.0f);
+	}
+	else if (launch_charge > 0.0f)
+	{
+		// Released: the plunger shoots up and pushes the ball. The more it was pulled, the faster it goes
+		float speed = PLUNGER_SPEED_MIN + (PLUNGER_SPEED_MAX - PLUNGER_SPEED_MIN) * launch_charge;
+		plunger->SetLinearVelocity(0.0f, -speed);
+		plunger_firing = true;
+		launch_charge = 0.0f;
+
+		// The first shot starts the game and the time
+		if (state == STATE_WAITING)
+			state = STATE_PLAYING;
+
+		return;
+	}
+
+	// The plunger follows the pull smoothly
+	float target_y = PLUNGER_REST_Y + PLUNGER_PULL * launch_charge;
+	plunger->SetLinearVelocity(0.0f, (target_y - y) * 10.0f);
+}
+
 update_status ModuleGame::Update()
 {
 	// Art: the background of the board and the logo (if a file is missing, nothing is drawn)
@@ -593,6 +713,9 @@ update_status ModuleGame::Update()
 	if (logo.id != 0)
 		DrawTextureFit(logo, Rectangle{ (float)(LEFT_PANEL_X + 10), 10.0f, (float)(PANEL_WIDTH - 20), (float)(BOARD_HEIGHT / 2 - 20) });
 
+	// Launcher lane: background (the walls are drawn with the others)
+	DrawRectangle(WALL_RIGHT, WALL_TOP, LAUNCH_LANE_WIDTH, LAUNCH_LANE_FLOOR_Y - WALL_TOP, Color{ 70, 70, 90, 255 });
+
 	// Walls and flippers filled with a color
 #if DRAW_WALLS
 	walls->DrawFilled(WALL_COLOR, WALL_THICKNESS);
@@ -600,6 +723,18 @@ update_status ModuleGame::Update()
 #endif
 	left_flipper->DrawFilled(FLIPPER_COLOR);
 	right_flipper->DrawFilled(FLIPPER_COLOR);
+
+#if DRAW_WALLS
+	lane_walls->DrawFilled(WALL_COLOR, WALL_THICKNESS);
+	lane_divider->DrawFilled(WALL_COLOR, WALL_THICKNESS);
+#endif
+
+	// The plunger
+	{
+		int px, py;
+		plunger->GetPosition(px, py);
+		DrawPlunger(px, py, launch_charge);
+	}
 
 	DrawPanels(score, time_left, next_ball_time, highscores, last_rank);
 	DrawSettings(App->window->GetFPSLimit(), App->physics->GetGravity(), ball_restitution);
@@ -697,29 +832,16 @@ update_status ModuleGame::Update()
 
 	DrawCombo(star_lit, combo_flash);
 
+	// The plunger works while the game is on (also to shoot again a ball that fell back to the lane)
+	if (state != STATE_GAME_OVER)
+		UpdatePlunger(dt);
+
 	switch (state)
 	{
 	case STATE_WAITING:
 	{
-		// The gold ball goes from side to side by itself
-		int x, y;
-		gold_ball->GetPosition(x, y);
-
-		if (x >= SUN_MAX_X) gold_dir = -1.0f;
-		else if (x <= SUN_MIN_X) gold_dir = 1.0f;
-
-		gold_ball->SetLinearVelocity(gold_dir * SUN_SPEED, 0.0f);
-
-		// Where the ball moves, and a hint
-		DrawLine(SUN_MIN_X, SUN_Y, SUN_MAX_X, SUN_Y, GRAY);
-		DrawCenteredText("PRESS SPACE TO DROP THE BALL", SUN_Y + 30, 20, DARKGRAY);
-
-		// SPACE: it falls straight down, the game and the time start
-		if (IsKeyPressed(KEY_SPACE))
-		{
-			gold_ball->SetDynamic(true);
-			state = STATE_PLAYING;
-		}
+		// The first shot is done with the plunger (UpdatePlunger starts the game)
+		DrawCenteredText("HOLD S / DOWN, RELEASE TO LAUNCH", 610, 18, DARKGRAY);
 	}
 	break;
 
@@ -811,6 +933,9 @@ bool ModuleGame::CleanUp()
 	DestroyStars();
 	DestroyExtraBalls();
 	App->physics->DestroyBody(lane_sensor);
+	App->physics->DestroyBody(plunger);
+	App->physics->DestroyBody(lane_walls);
+	App->physics->DestroyBody(lane_divider);
 	App->physics->DestroyBody(gold_ball);
 	App->physics->DestroyBody(walls);
 	App->physics->DestroyBody(half_moon);
@@ -818,7 +943,7 @@ bool ModuleGame::CleanUp()
 	App->physics->DestroyBody(right_flipper);
 	App->physics->DestroyBody(sensor);
 
-	gold_ball = walls = half_moon = left_flipper = right_flipper = sensor = lane_sensor = NULL;
+	gold_ball = walls = half_moon = left_flipper = right_flipper = sensor = lane_sensor = plunger = lane_walls = lane_divider = NULL;
 
 	return true;
 }

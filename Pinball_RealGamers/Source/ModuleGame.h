@@ -37,6 +37,9 @@ private:
 	// The game is over: saves the result in the highscores
 	void EndGame();
 
+	// Plunger of the launcher lane: hold S / DOWN to pull it back, release to shoot
+	void UpdatePlunger(float dt);
+
 	void CreateStars();
 	void DestroyStars();
 	bool IsStar(PhysBody* body) const;
@@ -53,7 +56,7 @@ private:
 	GameState state;
 
 	PhysBody* gold_ball;
-	float gold_dir;         // +1 right, -1 left (only while waiting)
+	float launch_charge;    // 0..1: how much the launcher is pulled back (only while waiting)
 	bool gold_lost;         // raised in OnCollision, handled in Update
 
 	float time_left;        // seconds
@@ -68,6 +71,12 @@ private:
 	PhysBody* stars[STAR_COUNT];
 
 	PhysBody* lane_sensor;  // the line in the middle of the half-moon
+
+	// Launcher lane, to the right of the playfield
+	PhysBody* lane_walls;   // floor, outer wall, curve at the top and ceiling
+	PhysBody* lane_divider; // wall between the lane and the playfield (seen from the lane)
+	PhysBody* plunger;      // kinematic box: the ball rests on it
+	bool plunger_firing;    // going up after being released
 
 	// Balls that appear every EXTRA_BALL_INTERVAL seconds
 	struct ExtraBall
