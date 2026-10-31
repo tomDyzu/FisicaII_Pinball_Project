@@ -9,7 +9,7 @@
 #include <algorithm>
 
 // Art ---------------------------------------------------------------
-#define BACKGROUND_PATH   "Assets/Back1.png"            // background of the board (2:3 proportion)
+#define BACKGROUND_PATH   "Assets/Back1.png"            // background of the board (it is scaled to the height of the board)
 #define LOGO_PATH         "Assets/logo.png"         // 1402x1122
 #define BALL_PATH         "Assets/S1.png"           // image of the gold ball
 #define EXTRA_BALL_PATH   "Assets/S2.png"           // image of the extra balls
@@ -20,6 +20,7 @@
 #define WALL_COLOR      Color{ 40, 60, 110, 255 }
 #define FLIPPER_COLOR   Color{ 230, 60, 60, 255 }
 #define GOLD_BRIGHTNESS 1.3f   // brightness of the gold ball: higher = lighter
+#define LANE_COLOR      Color{ 45, 45, 60, 255 }   // launcher lane where the background image does not reach
 
 // Ball ---------------------------------------------------------------
 #define BALL_RADIUS       12
@@ -50,10 +51,12 @@
 #define LANE_CORNER_RADIUS  30
 #define LANE_LEG_END_Y      200   // where the two legs of the half-moon end
 
-// Launcher lane, to the right of the playfield. Its divider is the right wall of the playfield
+// Launcher lane, to the right of the playfield art. The border of the art (x from WALL_RIGHT to BOARD_WIDTH)
+// is the thickness of the wall between the playfield and the lane
 #define LAUNCH_LANE_WIDTH     44                                   // free width of the lane (the ball is 24)
-#define LAUNCH_LANE_OUT_X     (WALL_RIGHT + LAUNCH_LANE_WIDTH)     // outer wall of the lane
-#define LAUNCH_LANE_X         (WALL_RIGHT + LAUNCH_LANE_WIDTH / 2) // center of the lane
+#define LAUNCH_DIVIDER_X      (BOARD_WIDTH)                         // wall between the lane and the border of the art
+#define LAUNCH_LANE_OUT_X     (LAUNCH_DIVIDER_X + LAUNCH_LANE_WIDTH) // outer wall of the lane
+#define LAUNCH_LANE_X         (LAUNCH_DIVIDER_X + LAUNCH_LANE_WIDTH / 2) // center of the lane
 #define LAUNCH_LANE_FLOOR_Y   890
 #define LAUNCH_LANE_ARC       LAUNCH_LANE_WIDTH                    // radius of the curve at the top of the lane
 #define DIVIDER_TOP_Y         (WALL_TOP + CORNER_RADIUS)           // the divider ends where the corner arc starts
@@ -217,7 +220,7 @@ static void BuildLaunchLane(std::vector<int>& pts)
 {
 	const float r = LAUNCH_LANE_ARC;
 
-	AddPoint(pts, WALL_RIGHT, LAUNCH_LANE_FLOOR_Y);
+	AddPoint(pts, LAUNCH_DIVIDER_X, LAUNCH_LANE_FLOOR_Y);
 	AddPoint(pts, LAUNCH_LANE_OUT_X, LAUNCH_LANE_FLOOR_Y);
 	AddArc(pts, LAUNCH_LANE_OUT_X - r, WALL_TOP + r, r, 0.0f, -90.0f, 10);
 	AddPoint(pts, WALL_RIGHT - CORNER_RADIUS, WALL_TOP);
@@ -517,8 +520,9 @@ bool ModuleGame::Start()
 	lane_walls = App->physics->CreateChain(0, 0, points.data(), (int)points.size(), false);
 
 	points.clear();
-	AddPoint(points, WALL_RIGHT, DIVIDER_TOP_Y);
-	AddPoint(points, WALL_RIGHT, LAUNCH_LANE_FLOOR_Y);
+	AddPoint(points, WALL_RIGHT, DIVIDER_TOP_Y);              // cap: closes the gap between both walls
+	AddPoint(points, LAUNCH_DIVIDER_X, DIVIDER_TOP_Y);
+	AddPoint(points, LAUNCH_DIVIDER_X, LAUNCH_LANE_FLOOR_Y);  // the divider, seen from the lane
 	lane_divider = App->physics->CreateChain(0, 0, points.data(), (int)points.size(), false);
 
 	// The plunger: a box that we move (kinematic). The ball rests on it
@@ -715,14 +719,21 @@ void ModuleGame::UpdatePlunger(float dt)
 update_status ModuleGame::Update()
 {
 	// Art: the background of the board and the logo (if a file is missing, nothing is drawn)
+	// The lane color first: it is only seen where the background image does not reach
+	DrawRectangle(BOARD_WIDTH, 0, LAUNCH_STRIP_WIDTH, BOARD_HEIGHT, LANE_COLOR);
+
+	// The image is scaled to the height of the board and placed at the left, so it is never stretched.
+	// If it is wider than the playfield (it includes the lane) it also covers the lane
 	if (background.id != 0)
-		DrawTextureFit(background, Rectangle{ 0.0f, 0.0f, (float)BOARD_WIDTH, (float)BOARD_HEIGHT });
+	{
+		float scale = (float)BOARD_HEIGHT / background.height;
+		Rectangle source = { 0.0f, 0.0f, (float)background.width, (float)background.height };
+		Rectangle dest = { 0.0f, 0.0f, background.width * scale, (float)BOARD_HEIGHT };
+		DrawTexturePro(background, source, dest, Vector2{ 0.0f, 0.0f }, 0.0f, WHITE);
+	}
 
 	if (logo.id != 0)
 		DrawTextureFit(logo, Rectangle{ (float)(LEFT_PANEL_X + 10), 10.0f, (float)(PANEL_WIDTH - 20), (float)(BOARD_HEIGHT / 2 - 20) });
-
-	// Launcher lane: background (the walls are drawn with the others)
-	DrawRectangle(WALL_RIGHT, WALL_TOP, LAUNCH_LANE_WIDTH, LAUNCH_LANE_FLOOR_Y - WALL_TOP, Color{ 70, 70, 90, 255 });
 
 	// Walls and flippers filled with a color
 #if DRAW_WALLS
