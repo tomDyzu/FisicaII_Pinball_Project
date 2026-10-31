@@ -40,7 +40,7 @@ enum update_status
 #define PANEL_WIDTH			  250
 
 
-#define LAUNCH_STRIP_WIDTH	  30
+#define LAUNCH_STRIP_WIDTH	  56
 #define SCREEN_WIDTH		  (BOARD_WIDTH + LAUNCH_STRIP_WIDTH + 2 * PANEL_WIDTH)
 #define SCREEN_HEIGHT		  BOARD_HEIGHT
 
