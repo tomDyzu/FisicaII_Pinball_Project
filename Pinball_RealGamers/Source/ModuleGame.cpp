@@ -13,6 +13,8 @@
 #define LOGO_PATH         "Assets/logo.png"         // 1402x1122
 #define BALL_PATH         "Assets/S1.png"           // image of the gold ball
 #define EXTRA_BALL_PATH   "Assets/S2.png"           // image of the extra balls
+#define SPAWN_PATH        "Assets/black.png"   // image of the place where extra balls appear
+#define SPAWN_IMAGE_SIZE  110                      // size on screen (pixels)
 #define DRAW_WALLS      1      // 0 = do not draw the walls (if the background image already has them)
 #define WALL_THICKNESS  6.0f
 #define WALL_COLOR      Color{ 40, 60, 110, 255 }
@@ -442,6 +444,7 @@ ModuleGame::ModuleGame(Application* app, bool start_enabled) : Module(app, start
 
 	background = Texture2D{ 0 };
 	logo = Texture2D{ 0 };
+	spawn_texture = Texture2D{ 0 };
 	ball_texture = Texture2D{ 0 };
 	extra_ball_texture = Texture2D{ 0 };
 
@@ -466,6 +469,11 @@ bool ModuleGame::Start()
 	logo = LoadTexture(LOGO_PATH);
 	if (background.id == 0) LOG("Cannot load %s", BACKGROUND_PATH);
 	if (logo.id == 0) LOG("Cannot load %s", LOGO_PATH);
+	spawn_texture = LoadTexture(SPAWN_PATH);
+	if (spawn_texture.id == 0)
+		LOG("Cannot load %s", SPAWN_PATH);
+	else
+		SetTextureFilter(spawn_texture, TEXTURE_FILTER_POINT);   // pixel art: no blur
 
 	// The ball images
 	ball_texture = LoadBallTexture(BALL_PATH, true);               // gold
@@ -798,8 +806,20 @@ update_status ModuleGame::Update()
 		e.lane_cooldown = MAX(e.lane_cooldown - dt, 0.0f);
 
 	// Marks (placeholders): where the extra balls appear and the scoring line of the half-moon
-	DrawCircle(SPAWN_X, SPAWN_Y, (float)SPAWN_MARK_RADIUS, Fade(SKYBLUE, 0.3f));
-	DrawCircleLines(SPAWN_X, SPAWN_Y, (float)SPAWN_MARK_RADIUS, SKYBLUE);
+	if (spawn_texture.id != 0)
+	{
+		DrawTextureFit(spawn_texture, Rectangle{
+			SPAWN_X - SPAWN_IMAGE_SIZE / 2.0f,
+			SPAWN_Y - SPAWN_IMAGE_SIZE / 2.0f,
+			(float)SPAWN_IMAGE_SIZE,
+			(float)SPAWN_IMAGE_SIZE });
+	}
+	else
+	{
+		// The image was not found: the old placeholder mark
+		DrawCircle(SPAWN_X, SPAWN_Y, (float)SPAWN_MARK_RADIUS, Fade(SKYBLUE, 0.3f));
+		DrawCircleLines(SPAWN_X, SPAWN_Y, (float)SPAWN_MARK_RADIUS, SKYBLUE);
+	}
 	DrawLineEx(Vector2{ (float)(BOARD_WIDTH / 2), (float)WALL_TOP },
 		Vector2{ (float)(BOARD_WIDTH / 2), (float)(WALL_TOP + LANE_WIDTH) }, 2.0f, RED);
 
@@ -925,10 +945,12 @@ bool ModuleGame::CleanUp()
 	if (logo.id != 0) UnloadTexture(logo);
 	if (ball_texture.id != 0) UnloadTexture(ball_texture);
 	if (extra_ball_texture.id != 0) UnloadTexture(extra_ball_texture);
+	if (spawn_texture.id != 0) UnloadTexture(spawn_texture);
 	background = Texture2D{ 0 };
 	logo = Texture2D{ 0 };
 	ball_texture = Texture2D{ 0 };
 	extra_ball_texture = Texture2D{ 0 };
+	spawn_texture = Texture2D{ 0 };
 
 	DestroyStars();
 	DestroyExtraBalls();

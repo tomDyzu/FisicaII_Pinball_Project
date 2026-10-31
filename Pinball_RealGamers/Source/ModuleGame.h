@@ -96,6 +96,7 @@ private:
 	Texture2D logo;
 	Texture2D ball_texture;                    // the gold ball
 	Texture2D extra_ball_texture;              // the extra balls
+	Texture2D spawn_texture;
 
 	float ball_restitution;                    // bounce of the balls: the player can change it
 
