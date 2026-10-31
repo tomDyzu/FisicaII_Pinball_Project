@@ -14,7 +14,7 @@
 #define BALL_PATH         "Assets/S1.png"           // image of the gold ball
 #define EXTRA_BALL_PATH   "Assets/S2.png"           // image of the extra balls
 #define SPAWN_PATH        "Assets/black.png"   // image of the place where extra balls appear
-#define SPAWN_IMAGE_SIZE  110                      // size on screen (pixels)
+#define SPAWN_IMAGE_SIZE  300                  // size on screen (pixels)
 #define DRAW_WALLS      1      // 0 = do not draw the walls (if the background image already has them)
 #define WALL_THICKNESS  6.0f
 #define WALL_COLOR      Color{ 40, 60, 110, 255 }
