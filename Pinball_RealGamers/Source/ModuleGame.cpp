@@ -28,7 +28,7 @@
 #define BALL_FRICTION     0.1f
 
 // Game ---------------------------------------------------------------
-#define GAME_TIME_SECONDS 300.0f   // 5 minutes
+#define GAME_TIME_SECONDS 240.0f   
 
 // Flippers -----------------------------------------------------------
 #define FLIPPER_LENGTH         90
@@ -73,7 +73,7 @@
 // Points and extra balls
 #define LANE_POINTS          300    // a ball goes through the line in the middle of the half-moon
 #define LANE_COOLDOWN        0.5f   // seconds before the same ball can score on that line again
-#define EXTRA_BALL_INTERVAL  30.0f  // seconds of play between two extra balls
+#define EXTRA_BALL_INTERVAL  20.0f  // seconds of play between two extra balls
 #define SPAWN_X              (BOARD_WIDTH / 2)   // where the extra balls appear (only a mark, no collision)
 #define SPAWN_Y              180
 #define SPAWN_MARK_RADIUS    16
@@ -872,7 +872,7 @@ update_status ModuleGame::Update()
 	case STATE_WAITING:
 	{
 		// The first shot is done with the plunger (UpdatePlunger starts the game)
-		DrawCenteredText("HOLD S / DOWN, RELEASE TO LAUNCH", 610, 18, DARKGRAY);
+		DrawCenteredText("HOLD S / DOWN, RELEASE TO LAUNCH", 610, 18, BLACK);
 	}
 	break;
 
