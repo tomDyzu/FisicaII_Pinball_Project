@@ -3,6 +3,7 @@
 #include "ModuleGame.h"
 #include "ModulePhysics.h"
 #include "ModuleWindow.h"
+#include "ModuleAudio.h"
 
 #include <vector>
 #include <math.h>
@@ -15,6 +16,7 @@
 #define EXTRA_BALL_PATH   "Assets/S2.png"           // image of the extra balls
 #define SPAWN_PATH        "Assets/black.png"   // image of the place where extra balls appear
 #define SPAWN_IMAGE_SIZE  140                  // size on screen (pixels)
+#define COMBO_FX_PATH     "Assets/Audio/Fx/combo.wav"   // sound when all the letters are hit
 #define DRAW_WALLS      1      // 0 = do not draw the walls (if the background image already has them)
 #define WALL_THICKNESS  6.0f
 #define WALL_COLOR      Color{ 40, 60, 110, 255 }
@@ -442,6 +444,7 @@ ModuleGame::ModuleGame(Application* app, bool start_enabled) : Module(app, start
 	ball_restitution = BALL_RESTITUTION;
 	combo_pending = false;
 	combo_flash = 0.0f;
+	combo_fx = 0;
 	for (int i = 0; i < STAR_COUNT; ++i)
 		star_lit[i] = false;
 
@@ -467,6 +470,10 @@ bool ModuleGame::Start()
 	LOG("Loading game");
 
 	highscores.Load();
+
+	combo_fx = App->audio->LoadFx(COMBO_FX_PATH);
+	if (combo_fx == 0)
+		LOG("Cannot load %s", COMBO_FX_PATH);
 
 	background = LoadTexture(BACKGROUND_PATH);
 	logo = LoadTexture(LOGO_PATH);
@@ -893,6 +900,7 @@ update_status ModuleGame::Update()
 		{
 			combo_pending = false;
 			score += COMBO_POINTS;
+			App->audio->PlayFx(combo_fx);
 			SpawnExtraBall();
 			combo_flash = COMBO_SHOW_TIME;
 		}

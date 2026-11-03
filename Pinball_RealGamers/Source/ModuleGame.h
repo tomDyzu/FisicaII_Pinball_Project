@@ -104,4 +104,5 @@ private:
 	bool star_lit[STAR_COUNT];                 // letters already hit
 	bool combo_pending;                        // raised in OnCollision, handled in Update
 	float combo_flash;                         // seconds left showing the combo message
+	unsigned int combo_fx;                     // sound of the combo (0 = not loaded)
 };
