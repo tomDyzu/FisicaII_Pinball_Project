@@ -108,6 +108,7 @@ private:
 	unsigned int launch_fx;                    // sound of the plunger at full charge (0 = not loaded)
 	unsigned int roll_fx;                      // sound of the ball going up the lane (0 = not loaded)
 	unsigned int restart_fx;                   // sound when a game starts or restarts (0 = not loaded)
+	unsigned int game_over_fx;                 // melody when the game is over (0 = not loaded)
 	bool roll_playing;                         // true while the ball is still going up the lane
 	bool roll_going_up;                        // true once the ball has really started to go up
 	unsigned int bumper_fx[3];                 // sounds of the letters, one at random (0 = not loaded)

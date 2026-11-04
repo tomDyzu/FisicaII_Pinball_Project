@@ -38,6 +38,7 @@ static const char* bumper_fx_paths[BUMPER_FX_COUNT] =
 	"Assets/Audio/Fx/bumper3.wav"
 };
 #define RESTART_FX_PATH   "Assets/Audio/Fx/reinicio.wav"   // sound when a game starts or restarts
+#define GAME_OVER_FX_PATH "Assets/Audio/Fx/gameOver.wav"   // melody when the game is over
 #define DRAW_WALLS      1
 #define WALL_THICKNESS  6.0f
 #define WALL_COLOR      Color{ 150, 60, 255, 255 }   // purple (same as the launch text)
@@ -563,6 +564,10 @@ bool ModuleGame::Start()
 	if (restart_fx == 0)
 		LOG("Cannot load %s", RESTART_FX_PATH);
 
+	game_over_fx = App->audio->LoadFx(GAME_OVER_FX_PATH);
+	if (game_over_fx == 0)
+		LOG("Cannot load %s", GAME_OVER_FX_PATH);
+
 	background = LoadTexture(BACKGROUND_PATH);
 	logo = LoadTexture(LOGO_PATH);
 	if (background.id == 0) LOG("Cannot load %s", BACKGROUND_PATH);
@@ -659,6 +664,9 @@ void ModuleGame::StartNewGame()
 	score = 0;
 	state = STATE_WAITING;
 
+	// Cut the game over melody if it is still playing
+	App->audio->StopFx(game_over_fx);
+
 	// Sound of a new game (it is cut when the player shoots the ball)
 	App->audio->PlayFx(restart_fx);
 }
@@ -716,6 +724,9 @@ void ModuleGame::EndGame()
 	if (seconds > (int)GAME_TIME_SECONDS) seconds = (int)GAME_TIME_SECONDS;
 
 	last_rank = highscores.Add(score, seconds);
+
+	// Game over melody (it is cut when a new game starts)
+	App->audio->PlayFx(game_over_fx);
 }
 
 void ModuleGame::SpawnExtraBall()
@@ -860,7 +871,7 @@ update_status ModuleGame::Update()
 
 	// Walls and flippers filled with a color
 #if DRAW_WALLS
-	// <- nuevo: first the white border of all the walls (thicker), then the purple on top of all of them
+	// first the white border of all the walls (thicker), then the purple on top of all of them
 	walls->DrawFilled(WALL_OUTLINE_COLOR, WALL_THICKNESS + 2.0f * WALL_OUTLINE);
 	half_moon->DrawFilled(WALL_OUTLINE_COLOR, WALL_THICKNESS + 2.0f * WALL_OUTLINE);
 	lane_walls->DrawFilled(WALL_OUTLINE_COLOR, WALL_THICKNESS + 2.0f * WALL_OUTLINE);
