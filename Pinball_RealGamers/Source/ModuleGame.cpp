@@ -11,12 +11,12 @@
 #include <time.h>
 
 // Art ---------------------------------------------------------------
-#define BACKGROUND_PATH   "Assets/Back1.png"            // background of the board (it is scaled to the height of the board)
-#define LOGO_PATH         "Assets/logo.png"         // 1402x1122
-#define BALL_PATH         "Assets/S1.png"           // image of the gold ball
-#define EXTRA_BALL_PATH   "Assets/S2.png"           // image of the extra balls
-#define SPAWN_PATH        "Assets/black.png"   // image of the place where extra balls appear
-#define SPAWN_IMAGE_SIZE  140                  // size on screen (pixels)
+#define BACKGROUND_PATH   "Assets/Back1.png"           
+#define LOGO_PATH         "Assets/logo.png"         
+#define BALL_PATH         "Assets/S1.png"           // imagen de la bola dorada
+#define EXTRA_BALL_PATH   "Assets/S2.png"           // image de las bolas extras
+#define SPAWN_PATH        "Assets/black.png"   // imang donde aparecen las bolas
+#define SPAWN_IMAGE_SIZE  140                  
 #define COMBO_FX_PATH     "Assets/Audio/Fx/combo.wav"   // sound when all the letters are hit
 #define LAUNCH_FX_PATH    "Assets/Audio/Fx/inicio.wav"   // sound when the plunger is released at full charge
 #define ROLL_FX_PATH      "Assets/Audio/Fx/ball_release.wav"   // ball going up the lane
@@ -45,8 +45,8 @@ static const char* bumper_fx_paths[BUMPER_FX_COUNT] =
 #define WALL_OUTLINE_COLOR WHITE                      // border of the walls
 #define WALL_OUTLINE    2.0f                          // thickness of the border on each side (pixels)
 #define FLIPPER_COLOR   Color{ 230, 60, 60, 255 }
-#define GOLD_BRIGHTNESS 1.3f   // brightness of the gold ball: higher = lighter
-#define LANE_COLOR      Color{ 45, 45, 60, 255 }   // launcher lane where the background image does not reach
+#define GOLD_BRIGHTNESS 1.3f  
+#define LANE_COLOR      Color{ 45, 45, 60, 255 }   
 
 // Ball ---------------------------------------------------------------
 #define BALL_RADIUS       12
@@ -68,14 +68,14 @@ static const char* bumper_fx_paths[BUMPER_FX_COUNT] =
 #define WALL_LEFT           (BOARD_BORDER)
 #define WALL_RIGHT          (BOARD_WIDTH - BOARD_BORDER)
 #define WALL_TOP            (BOARD_BORDER)
-#define CORNER_RADIUS       70    // rounded top corners
-#define FUNNEL_RADIUS       120   // curve between the side walls and the slopes to the flippers
+#define CORNER_RADIUS       70   
+#define FUNNEL_RADIUS       120
 
 // Half-moon lane
-#define LANE_WIDTH          60    // free space between the outer wall and the half-moon (the ball is 24)
+#define LANE_WIDTH          60   
 #define LANE_WALL_THICKNESS 32
 #define LANE_CORNER_RADIUS  30
-#define LANE_LEG_END_Y      200   // where the two legs of the half-moon end
+#define LANE_LEG_END_Y      200   
 
 // Launcher lane, to the right of the playfield art. The border of the art (x from WALL_RIGHT to BOARD_WIDTH)
 // is the thickness of the wall between the playfield and the lane
@@ -91,31 +91,31 @@ static const char* bumper_fx_paths[BUMPER_FX_COUNT] =
 #define PLUNGER_HALF_W        18
 #define PLUNGER_HALF_H        6
 #define PLUNGER_REST_Y        820
-#define PLUNGER_PULL          40       // how far it goes down at full charge (pixels)
-#define PLUNGER_CHARGE_TIME   1.0f     // seconds to get the full power
-#define PLUNGER_SPEED_MIN     250.0f   // speed of the plunger going up with the minimum charge (pixels per second)
-#define PLUNGER_SPEED_MAX     900.0f   // and with the full charge. The ball leaves about 1.4 times faster
+#define PLUNGER_PULL          40      
+#define PLUNGER_CHARGE_TIME   1.0f     
+#define PLUNGER_SPEED_MIN     250.0f   
+#define PLUNGER_SPEED_MAX     900.0f   
 
 // Points and extra balls
-#define LANE_POINTS          300    // a ball goes through the line in the middle of the half-moon
-#define LANE_COOLDOWN        0.5f   // seconds before the same ball can score on that line again
-#define EXTRA_BALL_INTERVAL  20.0f  // seconds of play between two extra balls
-#define SPAWN_X              (BOARD_WIDTH / 2)   // where the extra balls appear (only a mark, no collision)
+#define LANE_POINTS          300    
+#define LANE_COOLDOWN        0.5f  
+#define EXTRA_BALL_INTERVAL  20.0f  
+#define SPAWN_X              (BOARD_WIDTH / 2)   
 #define SPAWN_Y              180
 #define SPAWN_MARK_RADIUS    16
-#define SPAWN_RANDOM_X       10     // small random horizontal offset, in pixels
+#define SPAWN_RANDOM_X       10     
 
 // Star bumpers: the only way to score. They move by themselves along a rail
 #define STAR_POINTS         100
-#define STAR_WALL_GAP       10    // free space between a star at the end of its rail and the wall
+#define STAR_WALL_GAP       10   
 #define STAR_ROW1_Y         285
 #define STAR_ROW2_Y         385
 #define STAR_ROW3_Y         485
 
 // Combo: every star is a letter of this word (same order as star_defs). Hit them all to get a bonus
-#define COMBO_WORD          "BONUS"   // it must have STAR_COUNT letters
+#define COMBO_WORD          "BONUS"  
 #define COMBO_POINTS        1000
-#define COMBO_SHOW_TIME     1.5f      // seconds that the message is shown
+#define COMBO_SHOW_TIME     1.5f      
 
 struct StarDef
 {

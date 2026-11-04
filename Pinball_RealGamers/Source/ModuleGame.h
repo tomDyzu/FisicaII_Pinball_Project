@@ -12,9 +12,9 @@ class PhysBody;
 
 enum GameState
 {
-	STATE_WAITING,    // the gold ball moves by itself, waiting for SPACE
-	STATE_PLAYING,    // the time is running
-	STATE_GAME_OVER   // the gold ball was lost or the time ran out
+	STATE_WAITING,    
+	STATE_PLAYING,    
+	STATE_GAME_OVER   // bola dorada perdida
 };
 
 class ModuleGame : public Module
@@ -31,7 +31,7 @@ public:
 
 private:
 
-	// Puts the gold ball on the "sun" line and resets time and score
+
 	void StartNewGame();
 
 	// The game is over: saves the result in the highscores
@@ -43,23 +43,23 @@ private:
 	void CreateStars();
 	void DestroyStars();
 	bool IsStar(PhysBody* body) const;
-	int StarIndex(PhysBody* body) const;        // -1 if it is not a star
+	int StarIndex(PhysBody* body) const;        
 	void DrawBall(PhysBody* body, float radius);
 
 	void SpawnExtraBall();
 	void DestroyExtraBalls();
-	bool IsBall(PhysBody* body) const;          // the gold ball or an extra ball
-	float* LaneCooldownOf(PhysBody* body);      // NULL if it is not a ball
+	bool IsBall(PhysBody* body) const;          
+	float* LaneCooldownOf(PhysBody* body);      // NULL si no es bolaa
 
 private:
 
 	GameState state;
 
 	PhysBody* gold_ball;
-	float launch_charge;    // 0..1: how much the launcher is pulled back (only while waiting)
-	bool gold_lost;         // raised in OnCollision, handled in Update
+	float launch_charge;    
+	bool gold_lost;         
 
-	float time_left;        // seconds
+	float time_left;        
 	int score;
 
 	PhysBody* walls;        // outer walls + funnels down to the flippers
@@ -90,30 +90,30 @@ private:
 	float next_ball_time;                      // seconds until the next extra ball
 
 	Highscores highscores;
-	int last_rank;                             // position of the last game in the list (-1 = it did not enter)
+	int last_rank;                             
 
 	Texture2D background;
 	Texture2D logo;
-	Texture2D ball_texture;                    // the gold ball
-	Texture2D extra_ball_texture;              // the extra balls
+	Texture2D ball_texture;                   
+	Texture2D extra_ball_texture;           
 	Texture2D spawn_texture;
 
-	float ball_restitution;                    // bounce of the balls: the player can change it
+	float ball_restitution;              
 
 	// Combo: every star is a letter of a word. Hit all the letters and you get a bonus
 	bool star_lit[STAR_COUNT];                 // letters already hit
 	bool combo_pending;                        // raised in OnCollision, handled in Update
 	float combo_flash;                         // seconds left showing the combo message
-	unsigned int combo_fx;                     // sound of the combo (0 = not loaded)
-	unsigned int launch_fx;                    // sound of the plunger at full charge (0 = not loaded)
-	unsigned int roll_fx;                      // sound of the ball going up the lane (0 = not loaded)
-	unsigned int restart_fx;                   // sound when a game starts or restarts (0 = not loaded)
-	unsigned int game_over_fx;                 // melody when the game is over (0 = not loaded)
-	bool roll_playing;                         // true while the ball is still going up the lane
-	bool roll_going_up;                        // true once the ball has really started to go up
-	unsigned int bumper_fx[3];                 // sounds of the letters, one at random (0 = not loaded)
-	unsigned int bounce_fx[2];                 // <- nuevo: sounds of the ball bouncing, one at random (0 = not loaded)
-	float bounce_cooldown;                     // <- nuevo: seconds until a bounce can sound again
-	unsigned int left_flipper_fx;              // sound of the left flipper (0 = not loaded)
-	unsigned int right_flipper_fx;             // sound of the right flipper (0 = not loaded)
+	unsigned int combo_fx;                    
+	unsigned int launch_fx;                 
+	unsigned int roll_fx;                  
+	unsigned int restart_fx;           
+	unsigned int game_over_fx;                 
+	bool roll_playing;                         
+	bool roll_going_up;                      
+	unsigned int bumper_fx[3];               
+	unsigned int bounce_fx[2];                 
+	float bounce_cooldown;                    
+	unsigned int left_flipper_fx;             
+	unsigned int right_flipper_fx;             
 };

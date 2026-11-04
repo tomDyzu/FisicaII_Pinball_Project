@@ -31,10 +31,7 @@ enum update_status
 	UPDATE_ERROR
 };
 
-// Configuration -----------
-
-// The board (where the physics live) is always BOARD_WIDTH x BOARD_HEIGHT pixels.
-// The window is wider: a side panel on each side (logo + score/time on the left, highscores on the right)
+// Configuracion
 #define BOARD_WIDTH			  600
 #define BOARD_HEIGHT		  900
 #define PANEL_WIDTH			  250
@@ -44,8 +41,7 @@ enum update_status
 #define SCREEN_WIDTH		  (BOARD_WIDTH + LAUNCH_STRIP_WIDTH + 2 * PANEL_WIDTH)
 #define SCREEN_HEIGHT		  BOARD_HEIGHT
 
-// Panels in BOARD coordinates (the camera moves the board to the center of the window),
-// so they are outside of the 0..BOARD_WIDTH range
+// separado por tres partes.
 #define LEFT_PANEL_X		  (-PANEL_WIDTH)
 #define RIGHT_PANEL_X		  (BOARD_WIDTH + LAUNCH_STRIP_WIDTH)
 

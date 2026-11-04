@@ -7,9 +7,7 @@
 
 #include <vector>
 
-// Gravity in m/s^2. Screen Y grows DOWNWARDS and we convert meters <-> pixels without flipping Y,
-// so a POSITIVE Y gravity makes bodies fall down on screen.
-// Pinball tables are tilted, so this is lower than real gravity (9.8). Tweak it until it feels right.
+
 #define GRAVITY_X 0.0f
 #define GRAVITY_Y 12.0f
 
@@ -33,7 +31,7 @@
 #define METERS_TO_PIXELS(m) ((int) floor(PIXELS_PER_METER * (m)))
 #define PIXEL_TO_METERS(p)  ((float) METER_PER_PIXEL * (p))
 
-// Small class to return to other modules to track position and rotation of physics bodies
+
 class PhysBody
 {
 public:
@@ -46,8 +44,8 @@ public:
 	bool Contains(int x, int y) const;
 	int RayCast(int x1, int y1, int x2, int y2, float& normal_x, float& normal_y) const;
 
-	void SetLinearVelocity(float vx, float vy);   // pixels per second
-	void SetDynamic(bool dynamic);                // false = kinematic (we move it), true = normal body
+	void SetLinearVelocity(float vx, float vy);   
+	void SetDynamic(bool dynamic);                
 	void SetRestitution(float restitution);
 	void DrawFilled(Color color, float thickness = 8.0f) const;
 
@@ -110,7 +108,7 @@ private:
 	float accumulator;
 	float gravity_y;
 
-	std::vector<PhysBody*> rail_bodies; // updated every frame in PreUpdate
+	std::vector<PhysBody*> rail_bodies; 
 
 	// Static body with no fixtures, needed to create joints like the mouse joint
 	b2Body* ground;
