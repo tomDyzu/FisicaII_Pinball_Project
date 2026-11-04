@@ -51,4 +51,4 @@ El objetivo es mantener la bola en juego el mayor tiempo posible dentro del lím
 4. Utiliza las teclas F1-F6 para probar los diferentes comportamientos del motor físico y registrar tus mejores puntuaciones en la tabla de Highscores.
 
 ## Link github
-[tomDyzu/FisicaII_Pinball_Project: Juego de Pinball](https://github.com/tomDyzu/FisicaII_Pinball_Project: Juego de Pinball)
+https://github.com/tomDyzu/FisicaII_Pinball_Project
