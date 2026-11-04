@@ -49,3 +49,6 @@ El objetivo es mantener la bola en juego el mayor tiempo posible dentro del lím
 2. Abre el proyecto en tu entorno de desarrollo.
 3. Compila el código y ejecuta la aplicación.
 4. Utiliza las teclas F1-F6 para probar los diferentes comportamientos del motor físico y registrar tus mejores puntuaciones en la tabla de Highscores.
+
+## Link github
+https://github.com/tomDyzu/FisicaII_Pinball_Project
