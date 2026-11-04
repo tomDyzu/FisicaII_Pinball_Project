@@ -47,6 +47,9 @@ bool ModuleAudio::CleanUp()
 
 	for (unsigned int i = 0; i < fx_count; i++)
 	{
+		for (int j = 0; j < MAX_FX_ALIASES; ++j)
+			UnloadSoundAlias(fx_alias[i][j]);
+
 		UnloadSound(fx[i]);
 	}
 	fx_count = 0;
@@ -108,7 +111,14 @@ unsigned int ModuleAudio::LoadFx(const char* path)
 		return 0;
 	}
 
-	fx[fx_count++] = sound;
+	fx[fx_count] = sound;
+
+	for (int j = 0; j < MAX_FX_ALIASES; ++j)
+		fx_alias[fx_count][j] = LoadSoundAlias(sound);
+
+	fx_next_alias[fx_count] = 0;
+	fx_count++;
+
 	return fx_count;
 }
 
@@ -119,6 +129,42 @@ bool ModuleAudio::PlayFx(unsigned int id, int repeat)
 		return false;
 
 	PlaySound(fx[id - 1]);
+
+	return true;
+}
+
+// Stop WAV with the id returned by LoadFx
+bool ModuleAudio::StopFx(unsigned int id)
+{
+	if (IsEnabled() == false || id == 0 || id > fx_count)
+		return false;
+
+	StopSound(fx[id - 1]);
+
+	return true;
+}
+
+// Play WAV in a free copy, so the same sound can overlap with itself
+bool ModuleAudio::PlayFxMix(unsigned int id)
+{
+	if (IsEnabled() == false || id == 0 || id > fx_count)
+		return false;
+
+	unsigned int i = id - 1;
+
+	// Look for a copy that is not playing
+	for (int j = 0; j < MAX_FX_ALIASES; ++j)
+	{
+		if (!IsSoundPlaying(fx_alias[i][j]))
+		{
+			PlaySound(fx_alias[i][j]);
+			return true;
+		}
+	}
+
+	// All the copies are busy: the next one starts again
+	PlaySound(fx_alias[i][fx_next_alias[i]]);
+	fx_next_alias[i] = (fx_next_alias[i] + 1) % MAX_FX_ALIASES;
 
 	return true;
 }

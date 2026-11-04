@@ -8,6 +8,7 @@
 #include <vector>
 #include <math.h>
 #include <algorithm>
+#include <time.h>
 
 // Art ---------------------------------------------------------------
 #define BACKGROUND_PATH   "Assets/Back1.png"            // background of the board (it is scaled to the height of the board)
@@ -17,9 +18,31 @@
 #define SPAWN_PATH        "Assets/black.png"   // image of the place where extra balls appear
 #define SPAWN_IMAGE_SIZE  140                  // size on screen (pixels)
 #define COMBO_FX_PATH     "Assets/Audio/Fx/combo.wav"   // sound when all the letters are hit
-#define DRAW_WALLS      1      // 0 = do not draw the walls (if the background image already has them)
+#define LAUNCH_FX_PATH    "Assets/Audio/Fx/inicio.wav"   // sound when the plunger is released at full charge
+#define ROLL_FX_PATH      "Assets/Audio/Fx/ball_release.wav"   // ball going up the lane
+#define BOUNCE_FX_COUNT   2
+static const char* bounce_fx_paths[BOUNCE_FX_COUNT] =
+{
+	"Assets/Audio/Fx/bounce1.wav",
+	"Assets/Audio/Fx/bounce2.wav"
+};
+#define BOUNCE_MIN_SPEED  1.5f    // softer touches do not sound (rolling, resting)
+#define BOUNCE_COOLDOWN   0.1f    // seconds between two bounce sounds
+#define LEFT_FLIPPER_FX_PATH   "Assets/Audio/Fx/flipper1.wav"  // left flipper
+#define RIGHT_FLIPPER_FX_PATH  "Assets/Audio/Fx/flipper2.wav"  // right flipper
+#define BUMPER_FX_COUNT   3
+static const char* bumper_fx_paths[BUMPER_FX_COUNT] =
+{
+	"Assets/Audio/Fx/bumper1.wav",
+	"Assets/Audio/Fx/bumper2.wav",
+	"Assets/Audio/Fx/bumper3.wav"
+};
+#define RESTART_FX_PATH   "Assets/Audio/Fx/reinicio.wav"   // sound when a game starts or restarts
+#define DRAW_WALLS      1
 #define WALL_THICKNESS  6.0f
-#define WALL_COLOR      Color{ 40, 60, 110, 255 }
+#define WALL_COLOR      Color{ 150, 60, 255, 255 }   // purple (same as the launch text)
+#define WALL_OUTLINE_COLOR WHITE                      // border of the walls
+#define WALL_OUTLINE    2.0f                          // thickness of the border on each side (pixels)
 #define FLIPPER_COLOR   Color{ 230, 60, 60, 255 }
 #define GOLD_BRIGHTNESS 1.3f   // brightness of the gold ball: higher = lighter
 #define LANE_COLOR      Color{ 45, 45, 60, 255 }   // launcher lane where the background image does not reach
@@ -254,6 +277,24 @@ static void DrawCenteredText(const char* text, int y, int size, Color color)
 	DrawText(text, BOARD_WIDTH / 2 - w / 2, y, size, color);
 }
 
+// centered text with an outline. The outline color is drawn all around, the text on top
+static void DrawCenteredTextOutline(const char* text, int y, int size, Color color, Color outline, int thickness)
+{
+	int w = MeasureText(text, size);
+	int x = BOARD_WIDTH / 2 - w / 2;
+
+	for (int dx = -thickness; dx <= thickness; ++dx)
+	{
+		for (int dy = -thickness; dy <= thickness; ++dy)
+		{
+			if (dx != 0 || dy != 0)
+				DrawText(text, x + dx, y + dy, size, outline);
+		}
+	}
+
+	DrawText(text, x, y, size, color);
+}
+
 // TODO: placeholder panels. Replace with the logo and the highscores
 static void DrawPanels(int score, float time_left, float next_ball, const Highscores& hs, int highlight)
 {
@@ -445,6 +486,17 @@ ModuleGame::ModuleGame(Application* app, bool start_enabled) : Module(app, start
 	combo_pending = false;
 	combo_flash = 0.0f;
 	combo_fx = 0;
+	launch_fx = 0;
+	roll_fx = 0;
+	roll_playing = false;
+	roll_going_up = false;
+	for (int i = 0; i < BOUNCE_FX_COUNT; ++i)
+		bounce_fx[i] = 0;
+	bounce_cooldown = 0.0f;
+	left_flipper_fx = 0;
+	right_flipper_fx = 0;
+	for (int i = 0; i < BUMPER_FX_COUNT; ++i)
+		bumper_fx[i] = 0;
 	for (int i = 0; i < STAR_COUNT; ++i)
 		star_lit[i] = false;
 
@@ -469,11 +521,47 @@ bool ModuleGame::Start()
 {
 	LOG("Loading game");
 
+	SetRandomSeed((unsigned int)time(NULL));   // a different random order every run
+
 	highscores.Load();
 
 	combo_fx = App->audio->LoadFx(COMBO_FX_PATH);
 	if (combo_fx == 0)
 		LOG("Cannot load %s", COMBO_FX_PATH);
+
+	launch_fx = App->audio->LoadFx(LAUNCH_FX_PATH);
+	if (launch_fx == 0)
+		LOG("Cannot load %s", LAUNCH_FX_PATH);
+
+	roll_fx = App->audio->LoadFx(ROLL_FX_PATH);
+	if (roll_fx == 0)
+		LOG("Cannot load %s", ROLL_FX_PATH);
+
+	for (int i = 0; i < BOUNCE_FX_COUNT; ++i)
+	{
+		bounce_fx[i] = App->audio->LoadFx(bounce_fx_paths[i]);
+		if (bounce_fx[i] == 0)
+			LOG("Cannot load %s", bounce_fx_paths[i]);
+	}
+
+	left_flipper_fx = App->audio->LoadFx(LEFT_FLIPPER_FX_PATH);
+	if (left_flipper_fx == 0)
+		LOG("Cannot load %s", LEFT_FLIPPER_FX_PATH);
+
+	right_flipper_fx = App->audio->LoadFx(RIGHT_FLIPPER_FX_PATH);
+	if (right_flipper_fx == 0)
+		LOG("Cannot load %s", RIGHT_FLIPPER_FX_PATH);
+
+	for (int i = 0; i < BUMPER_FX_COUNT; ++i)
+	{
+		bumper_fx[i] = App->audio->LoadFx(bumper_fx_paths[i]);
+		if (bumper_fx[i] == 0)
+			LOG("Cannot load %s", bumper_fx_paths[i]);
+	}
+
+	restart_fx = App->audio->LoadFx(RESTART_FX_PATH);
+	if (restart_fx == 0)
+		LOG("Cannot load %s", RESTART_FX_PATH);
 
 	background = LoadTexture(BACKGROUND_PATH);
 	logo = LoadTexture(LOGO_PATH);
@@ -552,6 +640,7 @@ void ModuleGame::StartNewGame()
 
 	// The gold ball waits on the plunger, in the launcher lane
 	gold_ball = App->physics->CreateCircle(LAUNCH_LANE_X, PLUNGER_REST_Y - PLUNGER_HALF_H - BALL_RADIUS, BALL_RADIUS, ball_restitution, BALL_FRICTION, true);
+	gold_ball->listener = this;     // so OnCollision knows when it bounces
 
 	launch_charge = 0.0f;
 	plunger_firing = false;
@@ -569,6 +658,9 @@ void ModuleGame::StartNewGame()
 	time_left = GAME_TIME_SECONDS;
 	score = 0;
 	state = STATE_WAITING;
+
+	// Sound of a new game (it is cut when the player shoots the ball)
+	App->audio->PlayFx(restart_fx);
 }
 
 void ModuleGame::CreateStars()
@@ -633,6 +725,7 @@ void ModuleGame::SpawnExtraBall()
 
 	ExtraBall extra;
 	extra.body = App->physics->CreateCircle(x, SPAWN_Y, BALL_RADIUS, ball_restitution, BALL_FRICTION, true);
+	extra.body->listener = this;
 	extra.lane_cooldown = 0.0f;
 
 	extra_balls.push_back(extra);
@@ -711,6 +804,29 @@ void ModuleGame::UpdatePlunger(float dt)
 		plunger_firing = true;
 		launch_charge = 0.0f;
 
+		// The restart sound is cut when the ball is shot
+		App->audio->StopFx(restart_fx);
+
+		// Sound of the shot: always, every time the plunger is released
+		App->audio->PlayFx(launch_fx);
+
+		// Sound of the ball going up: only if the ball is resting on the plunger
+		bool ball_on_plunger = false;
+		if (gold_ball != NULL)
+		{
+			int bx, by;
+			gold_ball->GetPosition(bx, by);
+			float rest_y = (float)y - PLUNGER_HALF_H - BALL_RADIUS;   // where the ball is when it rests on the plunger
+			ball_on_plunger = (bx >= WALL_RIGHT && fabsf((float)by - rest_y) <= 10.0f);
+		}
+
+		if (ball_on_plunger)
+		{
+			App->audio->PlayFx(roll_fx);
+			roll_playing = true;
+			roll_going_up = false;
+		}
+
 		// The first shot starts the game and the time
 		if (state == STATE_WAITING)
 			state = STATE_PLAYING;
@@ -744,16 +860,19 @@ update_status ModuleGame::Update()
 
 	// Walls and flippers filled with a color
 #if DRAW_WALLS
+	// <- nuevo: first the white border of all the walls (thicker), then the purple on top of all of them
+	walls->DrawFilled(WALL_OUTLINE_COLOR, WALL_THICKNESS + 2.0f * WALL_OUTLINE);
+	half_moon->DrawFilled(WALL_OUTLINE_COLOR, WALL_THICKNESS + 2.0f * WALL_OUTLINE);
+	lane_walls->DrawFilled(WALL_OUTLINE_COLOR, WALL_THICKNESS + 2.0f * WALL_OUTLINE);
+	lane_divider->DrawFilled(WALL_OUTLINE_COLOR, WALL_THICKNESS + 2.0f * WALL_OUTLINE);
+
 	walls->DrawFilled(WALL_COLOR, WALL_THICKNESS);
 	half_moon->DrawFilled(WALL_COLOR, WALL_THICKNESS);
-#endif
-	left_flipper->DrawFilled(FLIPPER_COLOR);
-	right_flipper->DrawFilled(FLIPPER_COLOR);
-
-#if DRAW_WALLS
 	lane_walls->DrawFilled(WALL_COLOR, WALL_THICKNESS);
 	lane_divider->DrawFilled(WALL_COLOR, WALL_THICKNESS);
 #endif
+	left_flipper->DrawFilled(FLIPPER_COLOR);
+	right_flipper->DrawFilled(FLIPPER_COLOR);
 
 	// The plunger
 	{
@@ -769,6 +888,16 @@ update_status ModuleGame::Update()
 	bool flippers_on = (state != STATE_GAME_OVER);
 	App->physics->SetFlipperMotor(left_flipper, flippers_on && (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A)));
 	App->physics->SetFlipperMotor(right_flipper, flippers_on && (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)));
+
+	// Sound of the flippers: only at the moment the key is pressed (not while it is held)
+	if (flippers_on)
+	{
+		if (IsKeyPressed(KEY_LEFT) || IsKeyPressed(KEY_A))
+			App->audio->PlayFx(left_flipper_fx);
+
+		if (IsKeyPressed(KEY_RIGHT) || IsKeyPressed(KEY_D))
+			App->audio->PlayFx(right_flipper_fx);
+	}
 
 	// R = restart (debug)
 	if (IsKeyPressed(KEY_R))
@@ -820,6 +949,7 @@ update_status ModuleGame::Update()
 	// Cooldown of the line in the middle of the half-moon
 	float dt = GetFrameTime();
 	gold_lane_cooldown = MAX(gold_lane_cooldown - dt, 0.0f);
+	bounce_cooldown = MAX(bounce_cooldown - dt, 0.0f);
 	for (ExtraBall& e : extra_balls)
 		e.lane_cooldown = MAX(e.lane_cooldown - dt, 0.0f);
 
@@ -874,12 +1004,44 @@ update_status ModuleGame::Update()
 	if (state != STATE_GAME_OVER)
 		UpdatePlunger(dt);
 
+	// Sound of the ball going up: it is cut if the ball falls back to the lane (weak shot)
+	if (roll_playing)
+	{
+		if (gold_ball == NULL || state == STATE_GAME_OVER)
+		{
+			App->audio->StopFx(roll_fx);
+			roll_playing = false;
+		}
+		else
+		{
+			int bx, by;
+			gold_ball->GetPosition(bx, by);
+			float vy = gold_ball->body->GetLinearVelocity().y;   // m/s: negative = going up
+
+			if (bx < WALL_RIGHT)
+			{
+				// The ball reached the field: the sound ends by itself
+				roll_playing = false;
+			}
+			else if (vy < -0.5f)
+			{
+				roll_going_up = true;
+			}
+			else if (roll_going_up && vy > 0.0f && by > WALL_TOP + LAUNCH_LANE_ARC)
+			{
+				// It stopped going up and falls back: cut the sound
+				App->audio->StopFx(roll_fx);
+				roll_playing = false;
+			}
+		}
+	}
+
 	switch (state)
 	{
 	case STATE_WAITING:
 	{
 		// The first shot is done with the plunger (UpdatePlunger starts the game)
-		DrawCenteredText("HOLD S / DOWN, RELEASE TO LAUNCH", 610, 18, BLACK);
+		DrawCenteredTextOutline("HOLD S / DOWN, RELEASE TO LAUNCH", 610, 20, Color{ 150, 60, 255, 255 }, WHITE, 2);
 	}
 	break;
 
@@ -1020,6 +1182,9 @@ void ModuleGame::OnCollision(PhysBody* bodyA, PhysBody* bodyB)
 	{
 		score += STAR_POINTS;
 
+		// Sound of the letter: one of the 3 at random. It does not cut the ones already playing
+		App->audio->PlayFxMix(bumper_fx[GetRandomValue(0, BUMPER_FX_COUNT - 1)]);
+
 		// Combo: a new letter of the word. During the message nothing is added
 		if (combo_flash <= 0.0f && !star_lit[star])
 		{
@@ -1037,6 +1202,19 @@ void ModuleGame::OnCollision(PhysBody* bodyA, PhysBody* bodyB)
 		}
 	}
 
+	// a ball bounces on something solid: one of the 2 bounce sounds at random
+	// the sensors do not count (the ball goes through them) and the letters have their own sound
+	if (state == STATE_PLAYING && IsBall(bodyA) && bounce_cooldown <= 0.0f
+		&& bodyB != sensor && bodyB != lane_sensor && StarIndex(bodyB) < 0)
+	{
+		float speed = bodyA->body->GetLinearVelocity().Length();   // m/s
+
+		if (speed >= BOUNCE_MIN_SPEED)
+		{
+			App->audio->PlayFxMix(bounce_fx[GetRandomValue(0, BOUNCE_FX_COUNT - 1)]);
+			bounce_cooldown = BOUNCE_COOLDOWN;
+		}
+	}
 }
 
 // Draws the ball image centered on the body: S1 for the gold ball, S2 for the extra balls

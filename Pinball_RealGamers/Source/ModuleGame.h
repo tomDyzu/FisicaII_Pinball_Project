@@ -105,4 +105,14 @@ private:
 	bool combo_pending;                        // raised in OnCollision, handled in Update
 	float combo_flash;                         // seconds left showing the combo message
 	unsigned int combo_fx;                     // sound of the combo (0 = not loaded)
+	unsigned int launch_fx;                    // sound of the plunger at full charge (0 = not loaded)
+	unsigned int roll_fx;                      // sound of the ball going up the lane (0 = not loaded)
+	unsigned int restart_fx;                   // sound when a game starts or restarts (0 = not loaded)
+	bool roll_playing;                         // true while the ball is still going up the lane
+	bool roll_going_up;                        // true once the ball has really started to go up
+	unsigned int bumper_fx[3];                 // sounds of the letters, one at random (0 = not loaded)
+	unsigned int bounce_fx[2];                 // <- nuevo: sounds of the ball bouncing, one at random (0 = not loaded)
+	float bounce_cooldown;                     // <- nuevo: seconds until a bounce can sound again
+	unsigned int left_flipper_fx;              // sound of the left flipper (0 = not loaded)
+	unsigned int right_flipper_fx;             // sound of the right flipper (0 = not loaded)
 };
